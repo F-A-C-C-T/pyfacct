@@ -10,7 +10,6 @@ from datetime import datetime
 import json
 import logging
 from urllib.parse import urljoin
-import urllib
 from requests.auth import HTTPBasicAuth
 from typing import Union, Optional, List, Dict, Any, Generator
 from .integration_exception import ConnectionException, InputException
@@ -120,6 +119,7 @@ class TIAPoller(object):
             429: "Maximum count of requests per second reached, please, increase limits in configuration file."
         }
         timeout_exception = ''
+        status_code = ''
         for i in range(10):
             try:
                 response = self._session.get(url, params=params, timeout=60)
@@ -287,7 +287,7 @@ class TIAPoller(object):
                     j += 1
                     time.sleep(1)
                 i += 1
-                logger.info('{0} portion was loaded'.format(i))
+                gib_logger.info('{0} portion was loaded'.format(i))
                 yield portion
         finally:
             self._session.close()
