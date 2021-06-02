@@ -62,7 +62,7 @@
 	```python
 	feed = poller.search_feed_by_id(collection_name='compromised/account', feed_id='some_id')  
 	parsed_feed = feed.parse_portion()  
-	binary_f ile = poller.search_file_in_threats(collection_name='hi/threat', feed_id='some_id', file_id='some_file_id_inside_feed')
+	binary_file = poller.search_file_in_threats(collection_name='hi/threat', feed_id='some_id', file_id='some_file_id_inside_feed')
 	```
 
 6. Don’t forget to close session in **try…catch** block, or use poller with context manager. 
