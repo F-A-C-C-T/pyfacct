@@ -120,7 +120,7 @@ class TIAPoller(object):
             {
                 'iocs': {
                     'network':
-                        [{'ip': [1, 2], 'url': 'url.com'}, {'ip': [3], url: ''}]
+                        [{'ip': [1, 2], 'url': 'url.com'}, {'ip': [3], 'url': ''}]
                 }
             },
 
