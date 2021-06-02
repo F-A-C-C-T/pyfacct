@@ -135,9 +135,9 @@ class TIAPoller(object):
         return this
 
         [
-            {ips: [[1, 2], [3]], iocs.network.url: ['url.com', '']},
+            {'ips': [[1, 2], [3]], 'iocs.network.url': ['url.com', '']},
 
-            {ips: [[4, 5]], iocs.network.url: ['new_url.com']}
+            {'ips': [[4, 5]], 'iocs.network.url': ['new_url.com']}
         ]
 
         :param collection_name: name of the collection whose keys to set.
@@ -181,7 +181,7 @@ class TIAPoller(object):
             }
         ]
 
-        return this `{ips: [1, 2, 3, 4, 5], iocs.network.url: ['url.com', 'new_url.com']}`.
+        return this `{'ips': [1, 2, 3, 4, 5], 'iocs.network.url': ['url.com', 'new_url.com']}`.
 
         :param collection_name: name of the collection whose keys to set.
         :param keys: list of keys to get from parse.
