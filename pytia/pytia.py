@@ -6,14 +6,16 @@ This module contains poller for GIB TI&A.
 
 import requests
 import time
-from datetime import datetime
 import json
 import logging
 from urllib.parse import urljoin
 from requests.auth import HTTPBasicAuth
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 from typing import Union, Optional, List, Dict, Any, Generator
-from .exception import ConnectionException, InputException, ParserException
+from .exception import ConnectionException, ParserException
 from .const import *
+from .utils import Validator, ParserHelper
 
 gib_logger = logging.getLogger("gib_integration")
 
@@ -32,13 +34,28 @@ class TIAPoller(object):
         :param api_key: API key, generated in GIB TI&A.
         :param api_url: (optional) URL for GIB TI&A.
         """
-        self._api_url = api_url
         self._session = requests.Session()
-        self._keys = {}
-        self._iocs_keys = {}
         self._session.auth = HTTPBasicAuth(username, api_key)
         self._session.headers.update(HEADERS)
         self._session.verify = False
+        self._api_url = api_url
+        self._keys = {}
+        self._iocs_keys = {}
+        self._mount_adapter_with_retries()
+
+    def _mount_adapter_with_retries(self):
+        retries = RETRIES
+        backoff_factor = BACKOFF_FACTOR
+        retry = Retry(
+            total=retries,
+            read=retries,
+            connect=retries,
+            backoff_factor=backoff_factor,
+            status_forcelist=STATUS_CODE_FORCELIST
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        self._session.mount('http://', adapter)
+        self._session.mount('https://', adapter)
 
     def __enter__(self):
         return self
@@ -46,57 +63,23 @@ class TIAPoller(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._session.close()
 
-    @staticmethod
-    def _validate_input_data(collection_name, limit, date_from, date_to):
-        if collection_name not in COLLECTIONS:
-            raise InputException('Invalid collection name {0}'.format(collection_name))
-        if limit > 400:
-            raise InputException('Max limit=400, your limit={0}'.format(limit))
-        if collection_name in ['hi/threat', 'apt/threat', 'osi/public_leak', 'suspicious_ip/tor_node']:
-            if limit > 100:
-                gib_logger.warning('For collection {0} recommended limit=100'.format(collection_name))
-        elif limit > 200:
-            gib_logger.warning('For collection {0} recommended limit=200'.format(collection_name))
-        try:
-            if date_from:
-                if len(date_from) == 10:
-                    datetime.strptime(date_from, '%Y-%m-%d')
-                else:
-                    datetime.strptime(date_from, '%Y-%m-%dT%H:%M:%S%z')
-            if date_to:
-                if len(date_to) == 10:
-                    datetime.strptime(date_to, '%Y-%m-%d')
-                else:
-                    datetime.strptime(date_to, '%Y-%m-%dT%H:%M:%S%z')
-        except TypeError or ValueError as e:
-            gib_logger.exception('Invalid date.')
-            raise InputException("""Invalid date, please use one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssZ" 
-                                 or "YYYY-MM-DDThh:mm:ss+-hh:mm". Exception message: {0}""". format(e))
-
-    def _send_request(self, url, params, decode=True):
+    def _send_request(self, url, params, decode=True, **kwargs):
         params = {k: v for k, v in params.items() if v}
-        timeout_exception = ''
-        status_code = ''
-        for i in range(10):
-            try:
-                response = self._session.get(url, params=params, timeout=60)
-                status_code = response.status_code
-                if status_code == 200:
-                    if decode:
-                        return response.json()
-                    else:
-                        return response.content
-            except requests.exceptions.Timeout as e:
-                timeout_exception = str(e)
-            time.sleep(1)
-        if timeout_exception:
-            raise ConnectionException("Max retries reached. Last exception: " + timeout_exception)
-        elif status_code in STATUS_CODE_MSGS:
-            raise ConnectionException("Max retries reached. Last status code: {0}. "
-                                      "Message: {1}".format(status_code, STATUS_CODE_MSGS[status_code]))
-        else:
-            raise ConnectionException("Max retries reached. Last status code: " +
-                                      str(status_code) + ". Something wrong.")
+        try:
+            response = self._session.get(url, params=params, timeout=TIMEOUT)
+            status_code = response.status_code
+            if status_code == 200:
+                if decode:
+                    return response.json()
+                else:
+                    return response.content
+            elif status_code in STATUS_CODE_MSGS:
+                raise ConnectionException("Status code: {0}. "
+                                          "Message: {1}".format(status_code, STATUS_CODE_MSGS[status_code]))
+            else:
+                raise ConnectionException("Status code: {0}. Something wrong.".format(str(status_code)))
+        except requests.exceptions.Timeout as e:
+            raise ConnectionException("Max retries reached. Exception message: {0}".format(e))
 
     def set_proxies(self, proxies: dict):
         """
@@ -105,6 +88,14 @@ class TIAPoller(object):
         :param proxies: requests-like proxies.
         """
         self._session.proxies = proxies
+
+    def set_verify(self, verify: bool):
+        """
+        Sets verify for `Session` object.
+
+        :param verify: true for verify certificate, false for requests without verifying.
+        """
+        self._session.verify = verify
 
     def set_keys(self, collection_name: str, keys: List[str]):
         """
@@ -143,17 +134,9 @@ class TIAPoller(object):
         :param collection_name: name of the collection whose keys to set.
         :param keys: list of keys to get from parse.
         """
-        if collection_name in COLLECTIONS:
-            if isinstance(keys, list):
-                for i in keys:
-                    if not isinstance(i, str):
-                        raise InputException('Every key should be a string')
-                self._keys[collection_name] = keys
-            else:
-                raise InputException("Keys should be stored in a list")
-        else:
-            raise InputException('Invalid collection name {0}, '
-                                 'should be one of this {1}'.format(collection_name, COLLECTIONS))
+        Validator.validate_collection_name(collection_name)
+        Validator.validate_set_keys_input(keys)
+        self._keys[collection_name] = keys
 
     def set_iocs_keys(self, collection_name: str, keys: List[str]):
         """
@@ -186,17 +169,9 @@ class TIAPoller(object):
         :param collection_name: name of the collection whose keys to set.
         :param keys: list of keys to get from parse.
         """
-        if collection_name in COLLECTIONS:
-            if isinstance(keys, list):
-                for i in keys:
-                    if not isinstance(i, str):
-                        raise InputException('Every key should be a string')
-                self._iocs_keys[collection_name] = keys
-            else:
-                raise InputException("Keys should be stored in a list")
-        else:
-            raise InputException('Invalid collection name {0}, '
-                                 'should be one of this {1}'.format(collection_name, COLLECTIONS))
+        Validator.validate_collection_name(collection_name)
+        Validator.validate_set_keys_input(keys)
+        self._iocs_keys[collection_name] = keys
 
     def create_update_generator(self, collection_name: str, date_from: Optional[str] = None,
                                 date_to: Optional[str] = None, query: Optional[str] = None,
@@ -228,9 +203,15 @@ class TIAPoller(object):
         :param limit: size of portion in iteration.
         :rtype: Generator[:class:`Parser`]
         """
+        Validator.validate_collection_name(collection_name)
+        if date_from:
+            Validator.validate_date_format(date=date_from,
+                                           formats=COLLECTIONS_INFO.get(collection_name).get("date_formats"))
+        if date_to:
+            Validator.validate_date_format(date=date_to,
+                                           formats=COLLECTIONS_INFO.get(collection_name).get("date_formats"))
         gib_logger.info('Starting update session for {0} collection'.format(collection_name))
         limit = int(limit)
-        self._validate_input_data(collection_name, limit, date_from, date_to)
         url = urljoin(self._api_url, collection_name + '/updated')
         i = 0
         j = 0
@@ -274,9 +255,15 @@ class TIAPoller(object):
         :param limit: size of portion in iteration.
         :rtype: Generator[:class:`Parser`]
         """
+        Validator.validate_collection_name(collection_name)
+        if date_from:
+            Validator.validate_date_format(date=date_from,
+                                           formats=COLLECTIONS_INFO.get(collection_name).get("date_formats"))
+        if date_to:
+            Validator.validate_date_format(date=date_to,
+                                           formats=COLLECTIONS_INFO.get(collection_name).get("date_formats"))
         gib_logger.info('Starting search session for {0} collection'.format(collection_name))
         limit = int(limit)
-        self._validate_input_data(collection_name, limit, date_from, date_to)
         result_id = None
         url = urljoin(self._api_url, collection_name)
         i = 0
@@ -311,6 +298,7 @@ class TIAPoller(object):
         :param feed_id: id of feed to search.
         :rtype: :class:`Parser`
         """
+        Validator.validate_collection_name(collection_name)
         url = urljoin(self._api_url, collection_name + '/' + feed_id)
         chunk = self._send_request(url=url, params={})
         portion = Parser(chunk, self._keys.get(collection_name, []),
@@ -338,6 +326,7 @@ class TIAPoller(object):
         :param feed_id: id of feed with file to search.
         :param file_id: if of file to search.
         """
+        Validator.validate_collection_name(collection_name)
         url = urljoin(self._api_url, collection_name + '/' + feed_id + '/file/' + file_id)
         binary_file = self._send_request(url=url, params={}, decode=False)
         return binary_file
@@ -352,13 +341,8 @@ class TIAPoller(object):
         :param date: defines for what date to get seqUpdate.
         :return: dict with collection names in keys and seq updates in values.
         """
-        if date is not None:
-            try:
-                datetime.strptime(date, '%Y-%m-%d')
-            except TypeError or ValueError as e:
-                gib_logger.exception('Invalid date for get_seq_update_dict.')
-                raise InputException("""Invalid date for get_seq_update_dict. , please use "YYYY-MM-DD" format. 
-                                     Exception message: {0}""".format(e))
+        if date:
+            Validator.validate_date_format(date=date, formats=["%Y-%m-%d"])
 
         req_url = urljoin(self._api_url, "sequence_list")
         params = {
@@ -366,7 +350,7 @@ class TIAPoller(object):
         }
         buffer_dict = self._send_request(url=req_url, params=params).get("list")
         seq_update_dict = {}
-        for key in COLLECTIONS:
+        for key in COLLECTIONS_INFO.keys():
             if key in buffer_dict.keys():
                 seq_update_dict[key] = buffer_dict[key]
         return seq_update_dict
@@ -409,41 +393,6 @@ class Parser(object):
         self.count = self.raw_dict.get('count', None)
         self.sequpdate = self.raw_dict.get('seqUpdate', None)
 
-    def __find_element_by_key(self, obj, key):
-        """
-        Recursively finds element or elements in dict.
-        """
-        path = key.split(".", 1)
-        if len(path) == 1:
-            if isinstance(obj, list):
-                return [i.get(path[0]) for i in obj]
-            elif isinstance(obj, dict):
-                return obj.get(path[0])
-            else:
-                return obj
-        else:
-            if isinstance(obj, list):
-                return [self.__find_element_by_key(i.get(path[0]), path[1]) for i in obj]
-            elif isinstance(obj, dict):
-                return self.__find_element_by_key(obj.get(path[0]), path[1])
-            else:
-                return obj
-
-    def __unpack_iocs(self, ioc):
-        """
-        Recursively unpacks all IOCs in one list.
-        """
-        unpacked = []
-        if isinstance(ioc, list):
-            for i in ioc:
-                unpacked.extend(self.__unpack_iocs(i))
-            return unpacked
-        else:
-            if ioc not in ['255.255.255.255', '0.0.0.0', '', None]:
-                return [ioc]
-            else:
-                return []
-
     def _return_items_list(self):
         if self.count is not None:
             raw_dict = self.raw_dict.get('items', {})
@@ -467,9 +416,9 @@ class Parser(object):
             for key in self.keys:
                 path = key.split(":")
                 if len(path) == 1:
-                    parsed_dict.update({path[0]: self.__find_element_by_key(feed, path[0])})
+                    parsed_dict.update({path[0]: ParserHelper.find_element_by_key(feed, path[0])})
                 else:
-                    parsed_dict.update({path[1]: self.__find_element_by_key(feed, path[0])})
+                    parsed_dict.update({path[1]: ParserHelper.find_element_by_key(feed, path[0])})
             parsed_portion.append(parsed_dict)
         if as_json:
             return json.dumps(parsed_portion)
@@ -490,9 +439,8 @@ class Parser(object):
             iocs = []
             path = key.split(":")
             for feed in raw_dict:
-                ioc = self.__find_element_by_key(feed, path[0])
-
-                iocs.extend(self.__unpack_iocs(ioc))
+                ioc = ParserHelper.find_element_by_key(feed, path[0])
+                iocs.extend(ParserHelper.unpack_iocs(ioc))
             if len(path) == 1:
                 iocs_dict[path[0]] = iocs
             else:
