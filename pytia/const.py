@@ -45,3 +45,5 @@ COLLECTIONS_INFO = {
     "hi/threat_actor": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]}
 }
 
+ONLY_SEARCH_COLLECTIONS = ["compromised/breached", "compromised/reaper"]
+

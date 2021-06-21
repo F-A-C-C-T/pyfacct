@@ -8,7 +8,7 @@ import requests
 import time
 import json
 import logging
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlencode
 from requests.auth import HTTPBasicAuth
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -65,6 +65,7 @@ class TIAPoller(object):
 
     def _send_request(self, url, params, decode=True, **kwargs):
         params = {k: v for k, v in params.items() if v}
+        params = urlencode(params)
         try:
             response = self._session.get(url, params=params, timeout=TIMEOUT)
             status_code = response.status_code
@@ -361,6 +362,7 @@ class TIAPoller(object):
         """
         seq_update_dict = self.get_seq_update_dict()
         collections_list = list(seq_update_dict.keys())
+        collections_list.extend(ONLY_SEARCH_COLLECTIONS)
         return collections_list
 
     def close_session(self):
