@@ -1,11 +1,12 @@
 ﻿
 ## **How to use**
-1. First of all you need to initialize Poller with your credentials and set proxy (if you use it), whitlisted by GROUP-IB. Proxy must be in request-like format.
+1. First of all you need to initialize Poller with your credentials and set proxy (if you use it), whitlisted by GROUP-IB. Proxy must be in request-like format. Also, you can change the verification of the HTTPS certificate (False by default).
 	```python
 	from pytia import TIAPoller
 
 	poller = TIAPoller('some@gmail.com', 'API_KEY')
 	poller.set_proxies({"https": 'proxy_protocol' + "://" + 'proxy_user' + ":" + 'proxy_password' + "@" +  'proxy_ip' + ":" + 'proxy_port'})
+	poller.set_verify(True)
 	```
 	
 2. Then you can set what data you need from feeds. Set keys in format **firstkey.secondkey** and module will find it recursively. Also you can set an alias for result dict using colon **firstkey.secondkey:result_key**.
