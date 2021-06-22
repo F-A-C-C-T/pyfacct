@@ -98,15 +98,14 @@ class TIAPoller(object):
         """
         self._session.verify = verify
 
-    def set_keys(self, collection_name: str, keys: List[str]):
+    def set_keys(self, collection_name: str, keys: Dict[str, str]):
         """
-        Sets keys to search in the selected collection. Parser finds keys recursively in lists/dicts
-        so set keys using dot notation: ``firstkey.secondkey``.
-
-        Also you can set an alias for result dict using colon ``firstkey.secondkey:result_key``.
+        Sets keys to search in the selected collection. `keys` should be python dict in this format:
+        {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
+        so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``.
 
         For example:
-        Keys `iocs.network.ip:ips` and `iocs.network.url` for list of feeds:
+        Keys {'ips': 'iocs.network.ip', 'url': 'iocs.network.url'} for list of feeds:
 
         [
             {
@@ -127,27 +126,26 @@ class TIAPoller(object):
         return this
 
         [
-            {'ips': [[1, 2], [3]], 'iocs.network.url': ['url.com', '']},
+            {'ips': [[1, 2], [3]], 'url': ['url.com', '']},
 
-            {'ips': [[4, 5]], 'iocs.network.url': ['new_url.com']}
+            {'ips': [[4, 5]], 'url': ['new_url.com']}
         ]
 
         :param collection_name: name of the collection whose keys to set.
-        :param keys: list of keys to get from parse.
+        :param keys: python dict with keys to get from parse.
         """
         Validator.validate_collection_name(collection_name)
         Validator.validate_set_keys_input(keys)
         self._keys[collection_name] = keys
 
-    def set_iocs_keys(self, collection_name: str, keys: List[str]):
+    def set_iocs_keys(self, collection_name: str, keys: Dict[str, str]):
         """
-        Sets keys to search IOCs in the selected collection. Parser finds keys recursively in lists/dicts
-        so set keys in this format: ``firstkey.secondkey``.
-
-        Also you can set an alias for result dict using colon ``firstkey.secondkey:result_key``.
+        Sets keys to search IOCs in the selected collection. `keys` should be the python dict in this format:
+        {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
+        so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``.
 
         For example:
-        Keys `iocs.network.ip:ips` and `iocs.network.url` for list of feeds:
+        Keys {'ips': 'iocs.network.ip', 'url': 'iocs.network.url'} for list of feeds:
 
         [
             {
@@ -165,10 +163,10 @@ class TIAPoller(object):
             }
         ]
 
-        return this `{'ips': [1, 2, 3, 4, 5], 'iocs.network.url': ['url.com', 'new_url.com']}`.
+        return this `{'ips': [1, 2, 3, 4, 5], 'url': ['url.com', 'new_url.com']}`.
 
         :param collection_name: name of the collection whose keys to set.
-        :param keys: list of keys to get from parse.
+        :param keys: python dict with keys to get from parse.
         """
         Validator.validate_collection_name(collection_name)
         Validator.validate_set_keys_input(keys)
@@ -377,11 +375,11 @@ class Parser(object):
     An object that handles raw JSON with various methods.
 
     :param dict chunk: data portion.
-    :param list[str] keys: fields to find in portion.
-    :param list[str] iocs_keys: IOCs to find in portion.
+    :param dict[str, str] keys: fields to find in portion.
+    :param dict[str, str] iocs_keys: IOCs to find in portion.
     """
 
-    def __init__(self, chunk: Dict, keys: List[str], iocs_keys: List[str]):
+    def __init__(self, chunk: Dict, keys: Dict[str, str], iocs_keys: Dict[str, str]):
         """
         :param chunk: data portion.
         :param keys: fields to find in portion.
@@ -402,6 +400,76 @@ class Parser(object):
             raw_dict = [self.raw_dict]
         return raw_dict
 
+    def set_keys(self, keys: Dict[str, str]):
+        """
+        Sets keys to search in the current portion of feeds. `keys` should be python dict in this format:
+        {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
+        so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``.
+
+        For example:
+        Keys {'ips': 'iocs.network.ip', 'url': 'iocs.network.url'} for list of feeds:
+
+        [
+            {
+                'iocs': {
+                    'network':
+                        [{'ip': [1, 2], 'url': 'url.com'}, {'ip': [3], 'url': ''}]
+                }
+            },
+
+            {
+                'iocs': {
+                    'network':
+                        [{'ip': [4, 5], 'url': 'new_url.com'}]
+                }
+            }
+        ]
+
+        return this
+
+        [
+            {'ips': [[1, 2], [3]], 'url': ['url.com', '']},
+
+            {'ips': [[4, 5]], 'url': ['new_url.com']}
+        ]
+
+        :param keys: python dict with keys to get from parse.
+        """
+        Validator.validate_set_keys_input(keys)
+        self.keys = keys
+
+    def set_iocs_keys(self, keys: Dict[str, str]):
+        """
+        Sets keys to search IOCs in the current portion of feeds. `keys` should be the python dict in this format:
+        {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
+        so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``.
+
+        For example:
+        Keys {'ips': 'iocs.network.ip', 'url': 'iocs.network.url'} for list of feeds:
+
+        [
+            {
+                'iocs': {
+                    'network':
+                        [{'ip': [1, 2], 'url': 'url.com'}, {'ip': [3], url: ""}]
+                }
+            },
+
+            {
+                'iocs': {
+                    'network':
+                        [{'ip': [4, 5], 'url': 'new_url.com'}]
+                }
+            }
+        ]
+
+        return this `{'ips': [1, 2, 3, 4, 5], 'url': ['url.com', 'new_url.com']}`.
+
+        :param keys: python dict with keys to get from parse.
+        """
+        Validator.validate_set_keys_input(keys)
+        self.iocs_keys = keys
+
     def parse_portion(self, as_json: Optional[bool] = False) -> Union[str, List[Dict[str, Any]]]:
         """
         Returns parsed portion of feeds using keys provided for current collection.
@@ -415,12 +483,9 @@ class Parser(object):
         raw_dict = self._return_items_list()
         for feed in raw_dict:
             parsed_dict = {}
-            for key in self.keys:
-                path = key.split(":")
-                if len(path) == 1:
-                    parsed_dict.update({path[0]: ParserHelper.find_element_by_key(feed, path[0])})
-                else:
-                    parsed_dict.update({path[1]: ParserHelper.find_element_by_key(feed, path[0])})
+            for key, value_to_find in self.keys.items():
+                parsed_dict.update({key: ParserHelper.find_element_by_key(feed, value_to_find)})
+                parsed_dict.update({key: ParserHelper.find_element_by_key(feed, value_to_find)})
             parsed_portion.append(parsed_dict)
         if as_json:
             return json.dumps(parsed_portion)
@@ -437,16 +502,13 @@ class Parser(object):
             raise ParserException("You didn't provide any keys for getting IOCs.")
         iocs_dict = {}
         raw_dict = self._return_items_list()
-        for key in self.iocs_keys:
+        for key, value_to_find in self.iocs_keys.items():
             iocs = []
-            path = key.split(":")
             for feed in raw_dict:
-                ioc = ParserHelper.find_element_by_key(feed, path[0])
+                ioc = ParserHelper.find_element_by_key(feed, value_to_find)
                 iocs.extend(ParserHelper.unpack_iocs(ioc))
-            if len(path) == 1:
-                iocs_dict[path[0]] = iocs
-            else:
-                iocs_dict[path[1]] = iocs
+            iocs_dict[key] = iocs
+            iocs_dict[key] = iocs
 
         if as_json:
             return json.dumps(iocs_dict)

@@ -25,11 +25,11 @@ class Validator(object):
 
     @classmethod
     def validate_set_keys_input(cls, keys):
-        if not isinstance(keys, list):
-            raise InputException("Keys should be stored in a list")
-        for i in keys:
+        if not isinstance(keys, dict):
+            raise InputException("Keys should be stored in a dict")
+        for i in keys.values():
             if not isinstance(i, str):
-                raise InputException('Every key should be a string')
+                raise InputException('Every search path should be a string')
 
 
 class ParserHelper(object):
