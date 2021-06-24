@@ -28,7 +28,7 @@ class TIAPoller(object):
     :param str api_key: API key, generated in GIB TI&A.
     :param str api_url: (optional) URL for GIB TI&A.
     """
-    def __init__(self, username: str, api_key: str, api_url: str = API_URL):
+    def __init__(self, username: str, api_key: str, api_url: str = RequestConsts.API_URL):
         """
         :param username: Login for GIB TI&A.
         :param api_key: API key, generated in GIB TI&A.
@@ -36,7 +36,7 @@ class TIAPoller(object):
         """
         self._session = requests.Session()
         self._session.auth = HTTPBasicAuth(username, api_key)
-        self._session.headers.update(HEADERS)
+        self._session.headers.update(RequestConsts.HEADERS)
         self._session.verify = False
         self._api_url = api_url
         self._keys = {}
@@ -44,14 +44,14 @@ class TIAPoller(object):
         self._mount_adapter_with_retries()
 
     def _mount_adapter_with_retries(self):
-        retries = RETRIES
-        backoff_factor = BACKOFF_FACTOR
+        retries = RequestConsts.RETRIES
+        backoff_factor = RequestConsts.BACKOFF_FACTOR
         retry = Retry(
             total=retries,
             read=retries,
             connect=retries,
             backoff_factor=backoff_factor,
-            status_forcelist=STATUS_CODE_FORCELIST
+            status_forcelist=RequestConsts.STATUS_CODE_FORCELIST
         )
         adapter = HTTPAdapter(max_retries=retry)
         self._session.mount('http://', adapter)
@@ -67,16 +67,17 @@ class TIAPoller(object):
         params = {k: v for k, v in params.items() if v}
         params = urlencode(params)
         try:
-            response = self._session.get(url, params=params, timeout=TIMEOUT)
+            response = self._session.get(url, params=params, timeout=RequestConsts.TIMEOUT)
             status_code = response.status_code
             if status_code == 200:
                 if decode:
                     return response.json()
                 else:
                     return response.content
-            elif status_code in STATUS_CODE_MSGS:
+            elif status_code in RequestConsts.STATUS_CODE_MSGS:
                 raise ConnectionException("Status code: {0}. "
-                                          "Message: {1}".format(status_code, STATUS_CODE_MSGS[status_code]))
+                                          "Message: {1}".format(status_code,
+                                                                RequestConsts.STATUS_CODE_MSGS[status_code]))
             else:
                 raise ConnectionException("Status code: {0}. Something wrong.".format(str(status_code)))
         except requests.exceptions.Timeout as e:
@@ -204,11 +205,15 @@ class TIAPoller(object):
         """
         Validator.validate_collection_name(collection_name)
         if date_from:
-            Validator.validate_date_format(date=date_from,
-                                           formats=COLLECTIONS_INFO.get(collection_name).get("date_formats"))
+            Validator.validate_date_format(
+                date=date_from,
+                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
+            )
         if date_to:
-            Validator.validate_date_format(date=date_to,
-                                           formats=COLLECTIONS_INFO.get(collection_name).get("date_formats"))
+            Validator.validate_date_format(
+                date=date_to,
+                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
+            )
         gib_logger.info('Starting update session for {0} collection'.format(collection_name))
         limit = int(limit)
         url = urljoin(self._api_url, collection_name + '/updated')
@@ -256,11 +261,15 @@ class TIAPoller(object):
         """
         Validator.validate_collection_name(collection_name)
         if date_from:
-            Validator.validate_date_format(date=date_from,
-                                           formats=COLLECTIONS_INFO.get(collection_name).get("date_formats"))
+            Validator.validate_date_format(
+                date=date_from,
+                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
+            )
         if date_to:
-            Validator.validate_date_format(date=date_to,
-                                           formats=COLLECTIONS_INFO.get(collection_name).get("date_formats"))
+            Validator.validate_date_format(
+                date=date_to,
+                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
+            )
         gib_logger.info('Starting search session for {0} collection'.format(collection_name))
         limit = int(limit)
         result_id = None
@@ -349,7 +358,7 @@ class TIAPoller(object):
         }
         buffer_dict = self._send_request(url=req_url, params=params).get("list")
         seq_update_dict = {}
-        for key in COLLECTIONS_INFO.keys():
+        for key in CollectionConsts.COLLECTIONS_INFO.keys():
             if key in buffer_dict.keys():
                 seq_update_dict[key] = buffer_dict[key]
         return seq_update_dict
@@ -360,7 +369,7 @@ class TIAPoller(object):
         """
         seq_update_dict = self.get_seq_update_dict()
         collections_list = list(seq_update_dict.keys())
-        collections_list.extend(ONLY_SEARCH_COLLECTIONS)
+        collections_list.extend(CollectionConsts.ONLY_SEARCH_COLLECTIONS)
         return collections_list
 
     def close_session(self):
@@ -470,7 +479,7 @@ class Parser(object):
         Validator.validate_set_keys_input(keys)
         self.iocs_keys = keys
 
-    def parse_portion(self, as_json: Optional[bool] = False) -> Union[str, List[Dict[str, Any]]]:
+    def parse_portion(self, as_json: Optional[bool] = False) -> Union[str, List[Dict[Any, Any]]]:
         """
         Returns parsed portion of feeds using keys provided for current collection.
         Every dict in list is one parsed feed.

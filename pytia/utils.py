@@ -6,9 +6,10 @@ from .const import *
 class Validator(object):
     @classmethod
     def validate_collection_name(cls, collection_name):
-        if collection_name not in COLLECTIONS_INFO.keys():
+        if collection_name not in CollectionConsts.COLLECTIONS_INFO.keys():
             raise InputException('Invalid collection name {0}, '
-                                 'should be one of this {1}'.format(collection_name, ", ".join(COLLECTIONS_INFO.keys())))
+                                 'should be one of this {1}'.format(collection_name,
+                                                                    ", ".join(CollectionConsts.COLLECTIONS_INFO.keys())))
 
     @classmethod
     def validate_date_format(cls, date, formats):
