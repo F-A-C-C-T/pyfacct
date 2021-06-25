@@ -516,7 +516,7 @@ class Parser(object):
             for feed in raw_dict:
                 ioc = ParserHelper.find_element_by_key(feed, value_to_find)
                 iocs.extend(ParserHelper.unpack_iocs(ioc))
-            iocs_dict[key] = iocs
+
             iocs_dict[key] = iocs
 
         if as_json:

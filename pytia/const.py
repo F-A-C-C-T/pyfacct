@@ -50,3 +50,32 @@ class CollectionConsts(object):
 
     ONLY_SEARCH_COLLECTIONS = ["compromised/breached", "compromised/reaper"]
 
+    RECOMMENDED_IOCS_KEYS = {
+        "compromised/account": ['client.ipv4.ip', 'cnc.domain', 'cnc.url', 'cnc.ipv4.ip', 'login'],
+        "compromised/card": ['client.ipv4.ip', 'cnc.domain', 'cnc.url', 'cnc.ipv4.ip', 'cardInfo.number'],
+        "compromised/mule": ['account', 'cnc.domain', 'cnc.url', 'cnc.ipv4.ip'],
+        "compromised/imei": ['client.ipv4.ip', 'cnc.domain', 'cnc.url', 'cnc.ipv4.ip', 'device.imei'],
+        "attacks/ddos": ['cnc.domain', 'cnc.url', 'cnc.ipv4.ip', 'target.ipv4.ip', 'target.url', 'target.domain'],
+        "attacks/phishing": ['ipv4.ip', 'phishingDomain.domain', 'url'],
+        "attacks/phishing_kit": ['emails'],
+        "attacks/deface": ['target.ip', 'url'],
+        "suspicious_ip/tor_node": ['ipv4.ip'],
+        "suspicious_ip/open_proxy": ['ipv4.ip'],
+        "suspicious_ip/socks_proxy": ['ipv4.ip'],
+        "malware/targeted_malware": ['md5', 'injectMd5', 'sha1', 'sha256'],
+        "malware/malware": [],
+        "malware/cnc": ['domain', 'url', 'ipv4.list.ip'],
+        "osi/public_leak": ['linkList.list.link'],
+        "osi/git_leak": [],
+        "osi/vulnerability": [],
+        "apt/threat_actor": [],
+        "apt/threat": [],
+        "bp/phishing": ['ipv4.ip', 'phishingDomain.domain', 'url'],
+        "bp/phishing_kit": ['emails'],
+        "hi/threat": ['indicators.params.hashes.md5', 'indicators.params.hashes.sha1',
+                      'indicators.params.hashes.sha256', 'indicators.params.url',
+                      'indicators.params.domain', 'indicators.params.ipv4'],
+        "hi/threat_actor": ['indicators.params.hashes.md5', 'indicators.params.hashes.sha1',
+                            'indicators.params.hashes.sha256', 'indicators.params.url',
+                            'indicators.params.domain', 'indicators.params.ipv4']
+    }
