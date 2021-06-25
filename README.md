@@ -9,55 +9,58 @@
 	poller.set_verify(True)
 	```
 	
-2. Then you can set what data you need from feeds. Set keys in format **firstkey.secondkey** and module will find it recursively. Also you can set an alias for result dict using colon **firstkey.secondkey:result_key**.
+2. Then you can set what data you need from feeds. Set key with the python dict in this format: {**key_name_you_want_in_result_dict**: **data_you_want_to_find**}. Parser finds keys recursively in lists/dicts so set **data_you_want_to_find** using dot notation: **firstkey.secondkey**.
 	```python
-	poller.set_keys('compromised/account', ['iocs.network.ip:ips', 'iocs.network.url'])  
-	poller.set_iocs_keys('compromised/account', ['iocs.network.ip:ips', 'iocs.network.url'])
+	poller.set_keys("apt/threat", {"url": "indicators.params.url"})
+	poller.set_iocs_keys("apt/threat", {"ips": "indicators.params.ip"})
 	```
 
 3. You can use one of this functions: **create_update_generator**, **create_search_generator** - to create a generator, that returns you portions with limited feeds in it. Update generator goes through the feed in ascending order, search generator goes in descending. Most important thing: with update generator, you can set seqUpdate
 	```
-	generator = poller.create_update_generator(collection_name='compromised/account', date_from='2021-01-30', date_to='2021-02-03', query='8.8.8.8', seqUpdate=20000000, limit=200)
+	generator = poller.create_update_generator(collection_name='compromised/account', date_from='2021-01-30', date_to='2021-02-03', query='8.8.8.8', sequpdate=20000000, limit=200)
 	```
 
-4. Each portion will be presented in object of **Parser** class. You can get raw data in json format or python dictionary format. For the update generator, you can get the last feed seqUpdate to save it locally, count shows you the number of feeds that still in the queue. For search generator count will return total number of feeds in the queue. Parse_portion and get_iocs methods use you keys and iocs_keys to return transformed data like on example below.
+4. Each portion will be presented in object of **Parser** class. You can get raw data in json format or python dictionary format. For the update generator, you can get the last feed *seqUpdate* to save it locally, *count* shows you the number of feeds that still in the queue. For search generator *count* will return total number of feeds in the queue. *Parse_portion* and *get_iocs* methods use you keys and iocs_keys to return transformed data like on example below. Also you can reset keys using *set_keys* and *set_iocs_keys* for current **Parser** object. It is similar to point 2 but requires only keys.
 	```
 	for portion in generator:  
 	    parsed_json = portion.parse_portion(as_json=False)  
 	    iocs = portion.get_iocs(as_json=False) 
-	    seqUpdate = portion.seqUpdate  
+	    sequpdate = portion.sequpdate  
 	    count = portion.count  
 	    raw_json = portion.raw_json  
 	    raw_dict = portion.raw_dict
+	    portion.set_keys({"ips": "indicators.params.ip"})
+	    new_parsed_json = portion.parse_portion(as_json=False)  
 	```
 	For example, if you use keys and Iocs_keys from point 2 for list of feeds:  
 	```python
 	[
-	    { 
-	        'iocs': { 
-	            'network': [
-		        {'ip': [1, 2], 'url': 'url.com'}, 
-			{'ip': [3], 'url': ''}
-		    ] 
-		} 
-	    },  
-	    { 
-	        'iocs': { 
-	            'network': [{'ip': [4, 5], 'url': 'new_url.com'}] 
-		} 
-	    }
-	]
+            {
+                'iocs': {
+                    'network':
+                        [{'ip': [1, 2], 'url': 'url.com'}, {'ip': [3], 'url': ''}]
+                }
+            },
+
+            {
+                'iocs': {
+                    'network':
+                        [{'ip': [4, 5], 'url': 'new_url.com'}]
+                }
+            }
+        ]
 	```
 	For parse_portion you will receive:
 	```python
 	[
-	    {'ips': [[1, 2], [3]], 'iocs.network.url': ['url.com', '']},  
-	    {'ips': [[4, 5]], 'iocs.network.url': ['new_url.com']}
-	]
+            {'ips': [[1, 2], [3]], 'url': ['url.com', '']},
+
+            {'ips': [[4, 5]], 'url': ['new_url.com']}
+        ]
 	```
 	For get_iocs you will receive:
 	```python
-	{'ips': [1, 2, 3, 4, 5], 'iocs.network.url': ['url.com', 'new_url.com']}
+	{'ips': [1, 2, 3, 4, 5], 'url': ['url.com', 'new_url.com']}
 	```
 5. You can find specific feed by **id** with this command that also returns **Parser** object. Or you can get binary file from threats.
 	```python
@@ -88,6 +91,6 @@
 	```python
 	collection_list = poller.get_available_collections()  
 	seq_update_dict = poller.get_seq_update_dict(date='2020-12-12')  
-	compromised_account_seqUpdate = seq_update_dict.get('compromised/account')
+	compromised_account_sequpdate = seq_update_dict.get('compromised/account')
 	```
 
