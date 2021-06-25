@@ -66,7 +66,7 @@
 	binary_file = poller.search_file_in_threats(collection_name='hi/threat', feed_id='some_id', file_id='some_file_id_inside_feed')
 	```
 
-6. Don’t forget to close session in **try…catch** block, or use poller with context manager. 
+6. Don’t forget to close session in **try…except…finally** block, or use poller with context manager. 
 	```python
 	from pytia import TIAPoller
 	from pytia.exception import InputException
