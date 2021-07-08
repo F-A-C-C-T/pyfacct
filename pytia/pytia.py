@@ -5,7 +5,6 @@ This module contains poller for GIB TI&A.
 """
 
 import requests
-import time
 import json
 import logging
 from urllib.parse import urljoin, urlencode
@@ -17,7 +16,7 @@ from .exception import ConnectionException, ParserException
 from .const import *
 from .utils import Validator, ParserHelper
 
-gib_logger = logging.getLogger("gib_integration")
+pytia_logger = logging.getLogger("pytia")
 
 
 class TIAPoller(object):
@@ -43,25 +42,25 @@ class TIAPoller(object):
         self._iocs_keys = {}
         self._mount_adapter_with_retries()
 
-    def _mount_adapter_with_retries(self):
-        retries = RequestConsts.RETRIES
-        backoff_factor = RequestConsts.BACKOFF_FACTOR
-        retry = Retry(
-            total=retries,
-            read=retries,
-            connect=retries,
-            backoff_factor=backoff_factor,
-            status_forcelist=RequestConsts.STATUS_CODE_FORCELIST
-        )
-        adapter = HTTPAdapter(max_retries=retry)
-        self._session.mount('http://', adapter)
-        self._session.mount('https://', adapter)
-
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._session.close()
+
+    def _mount_adapter_with_retries(self, retries=RequestConsts.RETRIES,
+                                    backoff_factor=RequestConsts.BACKOFF_FACTOR,
+                                    status_forcelist=RequestConsts.STATUS_CODE_FORCELIST):
+        retry = Retry(
+            total=retries,
+            read=retries,
+            connect=retries,
+            backoff_factor=backoff_factor,
+            status_forcelist=status_forcelist
+        )
+        adapter = HTTPAdapter(max_retries=retry)
+        self._session.mount('http://', adapter)
+        self._session.mount('https://', adapter)
 
     def _send_request(self, url, params, decode=True, **kwargs):
         params = {k: v for k, v in params.items() if v}
@@ -180,9 +179,6 @@ class TIAPoller(object):
         Creates generator of :class:`Parser` class objects for an update session
         (feeds are sorted in ascending order) for `collection_name` with set parameters.
 
-        Recommended limit for `hi/threat`, `apt/threat`, `osi/public_leak`, `suspicious_ip/tor_node` is 100,
-        for other collections - 200.
-
         `sequpdate` allows you to receive all relevant feeds. Such a request uses the sequpdate parameter,
         you will receive a portion of feeds that starts with the next `sequpdate` parameter for the current collection.
         For all feeds in the Group IB Intelligence continuous numbering is carried out.
@@ -192,8 +188,8 @@ class TIAPoller(object):
         has been detected as active again), the item gets a new parameter and it automatically rises in the database
         and "becomes relevant" again.
 
-        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssZ"
-        or "YYYY-MM-DDThh:mm:ss+-hh:mm". Limit shouldn't be higher than 400.
+        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssz".
+        For most collections, limits are set on the server and can't be exceeded.
 
         :param collection_name: collection to update.
         :param date_from: start date of update session.
@@ -203,7 +199,7 @@ class TIAPoller(object):
         :param limit: size of portion in iteration.
         :rtype: Generator[:class:`Parser`]
         """
-        Validator.validate_collection_name(collection_name)
+        Validator.validate_collection_name(collection_name, method="update")
         if date_from:
             Validator.validate_date_format(
                 date=date_from,
@@ -214,43 +210,37 @@ class TIAPoller(object):
                 date=date_to,
                 formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
             )
-        gib_logger.info('Starting update session for {0} collection'.format(collection_name))
+        pytia_logger.info('Starting update session for {0} collection'.format(collection_name))
         limit = int(limit)
         url = urljoin(self._api_url, collection_name + '/updated')
         i = 0
-        j = 0
-        final_portion_count = 0
+        total_amount = 0
         while True:
-            gib_logger.info('Loading {0} portion, starting from sequpdate={1}'.format(i+1, sequpdate))
+            i += 1
+            pytia_logger.info('Loading {0} portion, starting from sequpdate={1}'.format(i, sequpdate))
             chunk = self._send_request(url=url, params={'df': date_from, 'dt': date_to, 'q': query,
                                                         'limit': limit, 'seqUpdate': sequpdate})
             portion = Parser(chunk, self._keys.get(collection_name, []),
                              self._iocs_keys.get(collection_name, []))
             sequpdate = portion.sequpdate
             date_from = None
+            pytia_logger.info('{0} portion was loaded'.format(i))
             if portion.count == 0:
-                gib_logger.info('Update session for {0} collection was finished, '
-                                'loaded {1} feeds'.format(collection_name, (i-j) * limit + final_portion_count))
+                pytia_logger.info('Update session for {0} collection was finished, '
+                                  'loaded {1} feeds'.format(collection_name, total_amount))
                 break
-            elif portion.count < limit:
-                final_portion_count += portion.count
-                j += 1
-                time.sleep(1)
-            i += 1
-            gib_logger.info('{0} portion was loaded'.format(i))
+            total_amount += len(portion.raw_dict.get('items'))
             yield portion
 
     def create_search_generator(self, collection_name: str, date_from: str = None, date_to: Optional[str] = None,
                                 query: Optional[str] = None, limit: Union[str, int] = 200):
         """
         Creates generator of :class:`Parser` class objects for the search session 
-        (feeds are sorted in descending order) for `collection_name` with set parameters.
+        (feeds are sorted in descending order, **excluding compromised/breached amd compromised/reaper**)
+        for `collection_name` with set parameters.
 
-        Recommended limit for `hi/threat`, `apt/threat`, `osi/public_leak`, `suspicious_ip/tor_node` is 100,
-        for other collections - 200.
-
-        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssZ" or
-        "YYYY-MM-DDThh:mm:ss+-hh:mm". Limit shouldn't be higher than 400.
+        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssz".
+        For most collections, limits are set on the server and can't be exceeded.
 
         :param collection_name: collection to search.
         :param date_from: start date of search session.
@@ -259,7 +249,7 @@ class TIAPoller(object):
         :param limit: size of portion in iteration.
         :rtype: Generator[:class:`Parser`]
         """
-        Validator.validate_collection_name(collection_name)
+        Validator.validate_collection_name(collection_name, method="search")
         if date_from:
             Validator.validate_date_format(
                 date=date_from,
@@ -270,32 +260,27 @@ class TIAPoller(object):
                 date=date_to,
                 formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
             )
-        gib_logger.info('Starting search session for {0} collection'.format(collection_name))
+        pytia_logger.info('Starting search session for {0} collection'.format(collection_name))
         limit = int(limit)
         result_id = None
         url = urljoin(self._api_url, collection_name)
         i = 0
-        j = 0
-        final_portion_count = 0
+        total_amount = 0
         while True:
-            gib_logger.info('Loading {0} portion'.format(i+1))
+            i += 1
+            pytia_logger.info('Loading {0} portion'.format(i))
             chunk = self._send_request(url=url, params={'df': date_from, 'dt': date_to, 'q': query,
                                                         'limit': limit, 'resultId': result_id})
             portion = Parser(chunk, self._keys.get(collection_name, []),
                              self._iocs_keys.get(collection_name, []))
             result_id = portion._result_id
             date_from, date_to, query = None, None, None
-
+            pytia_logger.info('{0} portion was loaded'.format(i))
             if len(portion.raw_dict.get('items')) == 0:
-                gib_logger.info('Search session for {0} collection was finished, '
-                                'loaded {1} feeds'.format(collection_name, (i-j) * limit + final_portion_count))
+                pytia_logger.info('Search session for {0} collection was finished, '
+                                  'loaded {1} feeds'.format(collection_name, total_amount))
                 break
-            elif len(portion.raw_dict.get('items')) < limit:
-                final_portion_count += len(portion.raw_dict.get('items'))
-                j += 1
-                time.sleep(1)
-            i += 1
-            gib_logger.info('{0} portion was loaded'.format(i))
+            total_amount += len(portion.raw_dict.get('items'))
             yield portion
 
     def search_feed_by_id(self, collection_name: str, feed_id: str):
@@ -496,6 +481,7 @@ class Parser(object):
                 parsed_dict.update({key: ParserHelper.find_element_by_key(feed, value_to_find)})
                 parsed_dict.update({key: ParserHelper.find_element_by_key(feed, value_to_find)})
             parsed_portion.append(parsed_dict)
+
         if as_json:
             return json.dumps(parsed_portion)
         return parsed_portion

@@ -1,15 +1,17 @@
 from datetime import datetime
 from .exception import InputException
-from .const import *
+from .const import CollectionConsts
 
 
 class Validator(object):
     @classmethod
-    def validate_collection_name(cls, collection_name):
-        if collection_name not in CollectionConsts.COLLECTIONS_INFO.keys():
+    def validate_collection_name(cls, collection_name, method):
+        if method == "update" and collection_name in CollectionConsts.ONLY_SEARCH_COLLECTIONS:
+            raise InputException("{0} collection must be used only with a search generator.".format(collection_name))
+        collection_names = CollectionConsts.COLLECTIONS_INFO.keys()
+        if collection_name not in collection_names:
             raise InputException('Invalid collection name {0}, '
-                                 'should be one of this {1}'.format(collection_name,
-                                                                    ", ".join(CollectionConsts.COLLECTIONS_INFO.keys())))
+                                 'should be one of this {1}'.format(collection_name, ", ".join(collection_names)))
 
     @classmethod
     def validate_date_format(cls, date, formats):
@@ -64,9 +66,8 @@ class ParserHelper(object):
         if isinstance(ioc, list):
             for i in ioc:
                 unpacked.extend(cls.unpack_iocs(i))
-            return unpacked
         else:
             if ioc not in ['255.255.255.255', '0.0.0.0', '', None]:
-                return [ioc]
-            else:
-                return []
+                unpacked.append(ioc)
+
+        return unpacked

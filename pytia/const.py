@@ -20,32 +20,34 @@ class RequestConsts(object):
 
 
 class CollectionConsts(object):
+    BASE_DATE_FORMATS = ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]
+
     COLLECTIONS_INFO = {
-        "compromised/account": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "compromised/card": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "compromised/breached": {"date_formats": ["%Y-%m-%d"]},
-        "compromised/reaper": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "compromised/mule": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "compromised/imei": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "attacks/ddos": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "attacks/phishing": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "attacks/phishing_kit": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "attacks/deface": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "suspicious_ip/tor_node": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "suspicious_ip/open_proxy": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "suspicious_ip/socks_proxy": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "malware/targeted_malware": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "malware/malware": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "malware/cnc": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "osi/public_leak": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "osi/git_leak": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "osi/vulnerability": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "apt/threat_actor": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "apt/threat": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "bp/phishing": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "bp/phishing_kit": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "hi/threat": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]},
-        "hi/threat_actor": {"date_formats": ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S%z"]}
+        "compromised/account": {"date_formats": BASE_DATE_FORMATS},
+        "compromised/card": {"date_formats": BASE_DATE_FORMATS},
+        "compromised/breached": {"date_formats": BASE_DATE_FORMATS},
+        "compromised/reaper": {"date_formats": BASE_DATE_FORMATS},
+        "compromised/mule": {"date_formats": BASE_DATE_FORMATS},
+        "compromised/imei": {"date_formats": BASE_DATE_FORMATS},
+        "attacks/ddos": {"date_formats": BASE_DATE_FORMATS},
+        "attacks/phishing": {"date_formats": BASE_DATE_FORMATS},
+        "attacks/phishing_kit": {"date_formats": BASE_DATE_FORMATS},
+        "attacks/deface": {"date_formats": BASE_DATE_FORMATS},
+        "suspicious_ip/tor_node": {"date_formats": BASE_DATE_FORMATS},
+        "suspicious_ip/open_proxy": {"date_formats": BASE_DATE_FORMATS},
+        "suspicious_ip/socks_proxy": {"date_formats": BASE_DATE_FORMATS},
+        "malware/targeted_malware": {"date_formats": BASE_DATE_FORMATS},
+        "malware/malware": {"date_formats": BASE_DATE_FORMATS},
+        "malware/cnc": {"date_formats": BASE_DATE_FORMATS},
+        "osi/public_leak": {"date_formats": BASE_DATE_FORMATS},
+        "osi/git_leak": {"date_formats": BASE_DATE_FORMATS},
+        "osi/vulnerability": {"date_formats": BASE_DATE_FORMATS},
+        "apt/threat_actor": {"date_formats": BASE_DATE_FORMATS},
+        "apt/threat": {"date_formats": BASE_DATE_FORMATS},
+        "bp/phishing": {"date_formats": BASE_DATE_FORMATS},
+        "bp/phishing_kit": {"date_formats": BASE_DATE_FORMATS},
+        "hi/threat": {"date_formats": BASE_DATE_FORMATS},
+        "hi/threat_actor": {"date_formats": BASE_DATE_FORMATS}
     }
 
     ONLY_SEARCH_COLLECTIONS = ["compromised/breached", "compromised/reaper"]
