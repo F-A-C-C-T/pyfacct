@@ -15,12 +15,12 @@
 	poller.set_iocs_keys("apt/threat", {"ips": "indicators.params.ip"})
 	```
 
-3. You can use one of this functions: **create_update_generator**, **create_search_generator** - to create a generator, that returns you portions with limited feeds in it. Update generator goes through the feed in ascending order, search generator goes in descending. Most important thing: with update generator, you can set seqUpdate
+3. You can use one of this functions: **create_update_generator**, **create_search_generator** - to create a generator, that returns you portions with limited feeds in it. Update generator goes through the feed in ascending order, search generator goes in descending, excluding compromised/breached and compromised/reaper collections. Most important thing: with update generator, you can set seqUpdate
 	```
 	generator = poller.create_update_generator(collection_name='compromised/account', date_from='2021-01-30', date_to='2021-02-03', query='8.8.8.8', sequpdate=20000000, limit=200)
 	```
 
-4. Each portion will be presented in object of **Parser** class. You can get raw data in json format or python dictionary format. For the update generator, you can get the last feed *seqUpdate* to save it locally, *count* shows you the number of feeds that still in the queue. For search generator *count* will return total number of feeds in the queue. *Parse_portion* and *get_iocs* methods use you keys and iocs_keys to return transformed data like on example below. Also you can reset keys using *set_keys* and *set_iocs_keys* for current **Parser** object. It is similar to point 2 but requires only keys.
+4. Each portion will be presented in object of **Parser** class. You can get raw data in json format or python dictionary format. For the update generator, you can get the last feed *sequpdate* to save it locally, *count* shows you the number of feeds that still in the queue. For search generator *count* will return total number of feeds in the queue. *Parse_portion* and *get_iocs* methods use you keys and iocs_keys to return transformed data like on example below. Also you can reset keys using *set_keys* and *set_iocs_keys* for current **Parser** object. It is similar to point 2 but requires only keys.
 	```
 	for portion in generator:  
 	    parsed_json = portion.parse_portion(as_json=False)  
@@ -94,3 +94,4 @@
 	compromised_account_sequpdate = seq_update_dict.get('compromised/account')
 	```
 
+8. Additional information about API you can find in the TI&A web interface or in TI&A Integration Guide.
