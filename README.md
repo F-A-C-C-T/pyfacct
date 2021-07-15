@@ -9,9 +9,9 @@
 	poller.set_verify(True)
 	```
 	
-2. Then you can set what data you need from feeds. Set key with the python dict in this format: {**key_name_you_want_in_result_dict**: **data_you_want_to_find**}. Parser finds keys recursively in lists/dicts so set **data_you_want_to_find** using dot notation: **firstkey.secondkey**.
+2. Then you can set what data you need from feeds. Set key with the python dict in this format: {**key_name_you_want_in_result_dict**: **data_you_want_to_find**}. Parser finds keys recursively in lists/dicts so set **data_you_want_to_find** using dot notation: **firstkey.secondkey**. If you want to add your own data to the results start your data_you_want_to_find with *.
 	```python
-	poller.set_keys("apt/threat", {"url": "indicators.params.url"})
+	poller.set_keys("apt/threat", {'ips': 'indicators.params.ip', 'url': 'indicators.params.url', 'type': '*network'})
 	poller.set_iocs_keys("apt/threat", {"ips": "indicators.params.ip"})
 	```
 
@@ -53,9 +53,9 @@
 	For parse_portion you will receive:
 	```python
 	[
-            {'ips': [[1, 2], [3]], 'url': ['url.com', '']},
+            {'ips': [[1, 2], [3]], 'url': ['url.com', ''], 'type': 'network'},
 
-            {'ips': [[4, 5]], 'url': ['new_url.com']}
+            {'ips': [[4, 5]], 'url': ['new_url.com'], 'type': 'network'}
         ]
 	```
 	For get_iocs you will receive:
