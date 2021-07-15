@@ -102,10 +102,11 @@ class TIAPoller(object):
         """
         Sets keys to search in the selected collection. `keys` should be python dict in this format:
         {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
-        so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``.
+        so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``. If you want to add your own data
+        to the results start your data_you_want_to_find with *.
 
         For example:
-        Keys {'ips': 'iocs.network.ip', 'url': 'iocs.network.url'} for list of feeds:
+        Keys {'ips': 'iocs.network.ip', 'url': 'iocs.network.url', 'type': '*network'} for list of feeds:
 
         [
             {
@@ -126,9 +127,9 @@ class TIAPoller(object):
         return this
 
         [
-            {'ips': [[1, 2], [3]], 'url': ['url.com', '']},
+            {'ips': [[1, 2], [3]], 'url': ['url.com', ''], 'type': 'network'},
 
-            {'ips': [[4, 5]], 'url': ['new_url.com']}
+            {'ips': [[4, 5]], 'url': ['new_url.com'], 'type': 'network'}
         ]
 
         :param collection_name: name of the collection whose keys to set.
@@ -398,10 +399,11 @@ class Parser(object):
         """
         Sets keys to search in the current portion of feeds. `keys` should be python dict in this format:
         {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
-        so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``.
+        so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``. If you want to add your own data
+        to the results start your data_you_want_to_find with *.
 
         For example:
-        Keys {'ips': 'iocs.network.ip', 'url': 'iocs.network.url'} for list of feeds:
+        Keys {'ips': 'iocs.network.ip', 'url': 'iocs.network.url', 'type': '*network'} for list of feeds:
 
         [
             {
@@ -422,9 +424,9 @@ class Parser(object):
         return this
 
         [
-            {'ips': [[1, 2], [3]], 'url': ['url.com', '']},
+            {'ips': [[1, 2], [3]], 'url': ['url.com', ''], 'type': 'network'},
 
-            {'ips': [[4, 5]], 'url': ['new_url.com']}
+            {'ips': [[4, 5]], 'url': ['new_url.com'], 'type': 'network'}
         ]
 
         :param keys: python dict with keys to get from parse.
@@ -477,9 +479,12 @@ class Parser(object):
         raw_dict = self._return_items_list()
         for feed in raw_dict:
             parsed_dict = {}
-            for key, value_to_find in self.keys.items():
-                parsed_dict.update({key: ParserHelper.find_element_by_key(feed, value_to_find)})
-                parsed_dict.update({key: ParserHelper.find_element_by_key(feed, value_to_find)})
+            for key, value in self.keys.items():
+                if value.startswith("*"):
+                    parsed_dict.update({key: value[1:]})
+                else:
+                    parsed_dict.update({key: ParserHelper.find_element_by_key(obj=feed, key=value)})
+
             parsed_portion.append(parsed_dict)
 
         if as_json:
@@ -497,10 +502,10 @@ class Parser(object):
             raise ParserException("You didn't provide any keys for getting IOCs.")
         iocs_dict = {}
         raw_dict = self._return_items_list()
-        for key, value_to_find in self.iocs_keys.items():
+        for key, value in self.iocs_keys.items():
             iocs = []
             for feed in raw_dict:
-                ioc = ParserHelper.find_element_by_key(feed, value_to_find)
+                ioc = ParserHelper.find_element_by_key(obj=feed, key=value)
                 iocs.extend(ParserHelper.unpack_iocs(ioc))
 
             iocs_dict[key] = iocs

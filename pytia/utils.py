@@ -5,7 +5,7 @@ from .const import CollectionConsts
 
 class Validator(object):
     @classmethod
-    def validate_collection_name(cls, collection_name, method):
+    def validate_collection_name(cls, collection_name, method=None):
         if method == "update" and collection_name in CollectionConsts.ONLY_SEARCH_COLLECTIONS:
             raise InputException("{0} collection must be used only with a search generator.".format(collection_name))
         collection_names = CollectionConsts.COLLECTIONS_INFO.keys()
