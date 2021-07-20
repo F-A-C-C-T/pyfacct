@@ -20,7 +20,7 @@ class RequestConsts(object):
 
 
 class CollectionConsts(object):
-    BASE_DATE_FORMATS = ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S"]
+    BASE_DATE_FORMATS = ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%SZ"]
 
     COLLECTIONS_INFO = {
         "compromised/account": {"date_formats": BASE_DATE_FORMATS},
