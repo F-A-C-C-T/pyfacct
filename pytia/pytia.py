@@ -78,7 +78,8 @@ class TIAPoller(object):
                                           "Message: {1}".format(status_code,
                                                                 RequestConsts.STATUS_CODE_MSGS[status_code]))
             else:
-                raise ConnectionException("Status code: {0}. Something wrong.".format(str(status_code)))
+                raise ConnectionException("Something wrong. Status code: {0}. "
+                                          "Response body: {1}.".format(status_code, response.text))
         except requests.exceptions.Timeout as e:
             raise ConnectionException("Max retries reached. Exception message: {0}".format(e))
 
