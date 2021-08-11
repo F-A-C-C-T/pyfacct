@@ -1,4 +1,5 @@
 ﻿
+﻿
 ## **How to use**
 1. First of all you need to initialize Poller with your credentials and set proxy (if you use it), whitlisted by GROUP-IB. Proxy must be in request-like format. Also, you can change the verification of the HTTPS certificate (False by default).
 	```python
@@ -9,9 +10,9 @@
 	poller.set_verify(True)
 	```
 	
-2. Then you can set what data you need from feeds. Set key with the python dict in this format: {**key_name_you_want_in_result_dict**: **data_you_want_to_find**}. Parser finds keys recursively in lists/dicts so set **data_you_want_to_find** using dot notation: **firstkey.secondkey**. If you want to add your own data to the results start your data_you_want_to_find with *.
+2. Then you can set what data you need from feeds. Set key with the python dict in this format: {**key_name_you_want_in_result_dict**: **data_you_want_to_find**}. Parser finds keys recursively in lists/dicts so set **data_you_want_to_find** using dot notation: **firstkey.secondkey**. If you want to add your own data to the results start your data_you_want_to_find with *. For set_keys you also can make a full template to nest data in the way you want.
 	```python
-	poller.set_keys("apt/threat", {'ips': 'indicators.params.ip', 'url': 'indicators.params.url', 'type': '*network'})
+	poller.set_keys("apt/threat", {'network': {'ips': 'indicators.params.ip'}, 'url': 'indicators.params.url', 'type': '*network'})
 	poller.set_iocs_keys("apt/threat", {"ips": "indicators.params.ip"})
 	```
 
@@ -34,33 +35,33 @@
 	```
 	For example, if you use keys and Iocs_keys from point 2 for list of feeds:  
 	```python
-	[
-            {
-                'iocs': {
-                    'network':
-                        [{'ip': [1, 2], 'url': 'url.com'}, {'ip': [3], 'url': ''}]
-                }
-            },
-
-            {
-                'iocs': {
-                    'network':
-                        [{'ip': [4, 5], 'url': 'new_url.com'}]
-                }
+	raw_dict = [
+        {
+            'indicators': {
+                'params':
+                    [{'ip': [1, 2], 'url': 'url.com'}, {'ip': [3], 'url': ''}]
             }
-        ]
+        },
+
+        {
+            'indicators': {
+                'params':
+                    [{'ip': [4, 5], 'url': 'new_url.com'}]
+            }
+        }
+    ]
 	```
 	For parse_portion you will receive:
 	```python
-	[
-            {'ips': [[1, 2], [3]], 'url': ['url.com', ''], 'type': 'network'},
+	parsed_json = [
+          {'network': {'ips': [[1, 2], [3]]}, 'url': ['url.com', ''], 'type': 'network'},
 
-            {'ips': [[4, 5]], 'url': ['new_url.com'], 'type': 'network'}
-        ]
+          {'network': {'ips': [[4, 5]]}, 'url': ['new_url.com'], 'type': 'network'}
+    ]
 	```
 	For get_iocs you will receive:
 	```python
-	{'ips': [1, 2, 3, 4, 5], 'url': ['url.com', 'new_url.com']}
+	iocs = {'ips': [1, 2, 3, 4, 5], 'url': ['url.com', 'new_url.com']}
 	```
 5. You can find specific feed by **id** with this command that also returns **Parser** object. Or you can get binary file from threats.
 	```python
@@ -95,3 +96,41 @@
 	```
 
 8. Additional information about API you can find in the TI&A web interface or in TI&A Integration Guide.
+
+9. Full version of program:
+	```python
+	import logging
+	from pytia import TIAPoller
+	from pytia.exception import InputException, ConnectionException, ParserException
+	
+	logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+	...
+	
+	try:
+	    poller = TIAPoller(username=username, api_key=api_key)
+		poller.set_proxies({"https": proxy_protocol + "://" + proxy_user + ":" + proxy_password + "@" +  proxy_ip + ":" + proxy_port})
+		poller.set_verify(True)
+		for collection, keys in keys_config.items():
+			poller.set_keys(collection, keys)
+			
+		for collection, state in update_generator_config.items():
+			if state.get("sequpdate"):
+				generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
+			elif state.get("date_from"):
+				generator = poller.create_update_generator(collection_name=collection, date_from=state.get("date_from"))
+			else:
+				continue
+			for portion in generator:
+				parsed_portion = portion.parse_portion()
+				save_portion(parsed_portion)
+				update_generator_config[collection]["sequpdate"] = portion.sequpdate
+			
+	except InputException as e:
+	    logging.exception("Wrong input: {0}".format(e))
+	except ConnectionException as e:
+		logging.exception("Something wrong with connection: {0}".format(e))
+	except ParserException as e:
+		logging.exception("Exception occured during parsing: {0}".format(e))
+	finally:
+	    poller.close_session()
+	```

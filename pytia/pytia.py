@@ -104,10 +104,11 @@ class TIAPoller(object):
         Sets keys to search in the selected collection. `keys` should be python dict in this format:
         {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
         so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``. If you want to add your own data
-        to the results start your data_you_want_to_find with *.
+        to the results start your data_you_want_to_find with *. You also can make a full template to nest data
+        in the way you want.
 
         For example:
-        Keys {'ips': 'iocs.network.ip', 'url': 'iocs.network.url', 'type': '*network'} for list of feeds:
+        Keys {'network': {'ips': 'iocs.network.ip'}, 'url': 'iocs.network.url', 'type': '*network'} for list of feeds:
 
         [
             {
@@ -128,9 +129,9 @@ class TIAPoller(object):
         return this
 
         [
-            {'ips': [[1, 2], [3]], 'url': ['url.com', ''], 'type': 'network'},
+            {'network': {'ips': [[1, 2], [3]]}, 'url': ['url.com', ''], 'type': 'network'},
 
-            {'ips': [[4, 5]], 'url': ['new_url.com'], 'type': 'network'}
+            {'network': {'ips': [[4, 5]]}, 'url': ['new_url.com'], 'type': 'network'}
         ]
 
         :param collection_name: name of the collection whose keys to set.
@@ -171,7 +172,7 @@ class TIAPoller(object):
         :param keys: python dict with keys to get from parse.
         """
         Validator.validate_collection_name(collection_name)
-        Validator.validate_set_keys_input(keys)
+        Validator.validate_set_iocs_keys_input(keys)
         self._iocs_keys[collection_name] = keys
 
     def create_update_generator(self, collection_name: str, date_from: Optional[str] = None,
@@ -401,10 +402,11 @@ class Parser(object):
         Sets keys to search in the current portion of feeds. `keys` should be python dict in this format:
         {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
         so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``. If you want to add your own data
-        to the results start your data_you_want_to_find with *.
+        to the results start your data_you_want_to_find with *. You also can make a full template to nest data
+        in the way you want.
 
         For example:
-        Keys {'ips': 'iocs.network.ip', 'url': 'iocs.network.url', 'type': '*network'} for list of feeds:
+        Keys {'network': {'ips': 'iocs.network.ip'}, 'url': 'iocs.network.url', 'type': '*network'} for list of feeds:
 
         [
             {
@@ -425,9 +427,9 @@ class Parser(object):
         return this
 
         [
-            {'ips': [[1, 2], [3]], 'url': ['url.com', ''], 'type': 'network'},
+            {'network': {'ips': [[1, 2], [3]]}, 'url': ['url.com', ''], 'type': 'network'},
 
-            {'ips': [[4, 5]], 'url': ['new_url.com'], 'type': 'network'}
+            {'network': {'ips': [[4, 5]]}git , 'url': ['new_url.com'], 'type': 'network'}
         ]
 
         :param keys: python dict with keys to get from parse.
@@ -464,7 +466,7 @@ class Parser(object):
 
         :param keys: python dict with keys to get from parse.
         """
-        Validator.validate_set_keys_input(keys)
+        Validator.validate_set_iocs_keys_input(keys)
         self.iocs_keys = keys
 
     def parse_portion(self, as_json: Optional[bool] = False) -> Union[str, List[Dict[Any, Any]]]:
@@ -479,13 +481,7 @@ class Parser(object):
         parsed_portion = []
         raw_dict = self._return_items_list()
         for feed in raw_dict:
-            parsed_dict = {}
-            for key, value in self.keys.items():
-                if value.startswith("*"):
-                    parsed_dict.update({key: value[1:]})
-                else:
-                    parsed_dict.update({key: ParserHelper.find_element_by_key(obj=feed, key=value)})
-
+            parsed_dict = ParserHelper.find_by_template(feed, self.keys)
             parsed_portion.append(parsed_dict)
 
         if as_json:

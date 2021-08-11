@@ -27,15 +27,37 @@ class Validator(object):
             raise InputException("""Invalid date, please use one of this formats: {0}.""".format(', '.join(formats)))
 
     @classmethod
-    def validate_set_keys_input(cls, keys):
+    def validate_set_iocs_keys_input(cls, keys):
         if not isinstance(keys, dict):
             raise InputException("Keys should be stored in a dict")
         for i in keys.values():
             if not isinstance(i, str):
                 raise InputException('Every search path should be a string')
 
+    @classmethod
+    def validate_set_keys_input(cls, keys):
+        if isinstance(keys, dict):
+            for i in keys.values():
+                cls.validate_set_keys_input(i)
+        elif not isinstance(keys, str):
+            raise InputException('Keys should be stored in nested dicts and on the lower level it should be a string.')
+
 
 class ParserHelper(object):
+    @classmethod
+    def find_by_template(cls, feed, keys):
+        parsed_dict = {}
+        for key, value in keys.items():
+            if isinstance(value, str):
+                if value.startswith("*"):
+                    parsed_dict.update({key: value[1:]})
+                else:
+                    parsed_dict.update({key: cls.find_element_by_key(obj=feed, key=value)})
+            elif isinstance(value, dict):
+                parsed_dict.update({key: cls.find_by_template(feed, value)})
+
+        return parsed_dict
+
     @classmethod
     def find_element_by_key(cls, obj, key):
         """
