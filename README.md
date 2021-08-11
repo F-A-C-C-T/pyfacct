@@ -1,7 +1,7 @@
 ﻿
 ﻿
 ## **How to use**
-1. First of all you need to initialize Poller with your credentials and set proxy (if you use it), whitlisted by GROUP-IB. Proxy must be in request-like format. Also, you can change the verification of the HTTPS certificate (False by default).
+1. First of all you need to initialize Poller with your credentials and set proxy (if you use it), whitelisted by GROUP-IB. Proxy must be in request-like format. Also, you can change the verification of the HTTPS certificate (False by default).
 	```python
 	from pytia import TIAPoller
 
@@ -10,7 +10,7 @@
 	poller.set_verify(True)
 	```
 	
-2. Then you can set what data you need from feeds. Set key with the python dict in this format: {**key_name_you_want_in_result_dict**: **data_you_want_to_find**}. Parser finds keys recursively in lists/dicts so set **data_you_want_to_find** using dot notation: **firstkey.secondkey**. If you want to add your own data to the results start your data_you_want_to_find with *. For set_keys you also can make a full template to nest data in the way you want.
+2. Then you can set what data you need. Set key with the python dict in the following format: {**key_name_you_want_in_result_dict**: **data_you_want_to_find**}. Parser finds keys recursively in lists/dicts so set **data_you_want_to_find** using dot notation: **firstkey.secondkey**. If you want to add your own data to the results start your data_you_want_to_find with *. For set_keys you also can make a full template to nest data in the way you want.
 	```python
 	poller.set_keys("apt/threat", {'network': {'ips': 'indicators.params.ip'}, 'url': 'indicators.params.url', 'type': '*network'})
 	poller.set_iocs_keys("apt/threat", {"ips": "indicators.params.ip"})
@@ -111,26 +111,26 @@
 		poller.set_proxies({"https": proxy_protocol + "://" + proxy_user + ":" + proxy_password + "@" +  proxy_ip + ":" + proxy_port})
 		poller.set_verify(True)
 		for collection, keys in keys_config.items():
-			poller.set_keys(collection, keys)
+		    poller.set_keys(collection, keys)
 			
 		for collection, state in update_generator_config.items():
-			if state.get("sequpdate"):
-				generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
-			elif state.get("date_from"):
-				generator = poller.create_update_generator(collection_name=collection, date_from=state.get("date_from"))
-			else:
-				continue
-			for portion in generator:
-				parsed_portion = portion.parse_portion()
-				save_portion(parsed_portion)
-				update_generator_config[collection]["sequpdate"] = portion.sequpdate
+		    if state.get("sequpdate"):
+		        generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
+		    elif state.get("date_from"):
+		        generator = poller.create_update_generator(collection_name=collection, date_from=state.get("date_from"))
+		    else:
+		        continue
+		    for portion in generator:
+		        parsed_portion = portion.parse_portion()
+			save_portion(parsed_portion)
+			update_generator_config[collection]["sequpdate"] = portion.sequpdate
 			
 	except InputException as e:
 	    logging.exception("Wrong input: {0}".format(e))
 	except ConnectionException as e:
-		logging.exception("Something wrong with connection: {0}".format(e))
+	    logging.exception("Something wrong with connection: {0}".format(e))
 	except ParserException as e:
-		logging.exception("Exception occured during parsing: {0}".format(e))
+	    logging.exception("Exception occured during parsing: {0}".format(e))
 	finally:
 	    poller.close_session()
 	```
