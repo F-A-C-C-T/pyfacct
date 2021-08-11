@@ -16,12 +16,12 @@
 	poller.set_iocs_keys("apt/threat", {"ips": "indicators.params.ip"})
 	```
 
-3. You can use one of this functions: **create_update_generator**, **create_search_generator** - to create a generator, that returns you portions with limited feeds in it. Update generator goes through the feed in ascending order, search generator goes in descending, excluding compromised/breached and compromised/reaper collections. Most important thing: with update generator, you can set seqUpdate
+3. You can use one of this functions: **create_update_generator**, **create_search_generator** - to create a generator, that returns you portions with limited feeds in it. Update generator goes through the feed in ascending order, search generator goes in descending, excluding compromised/breached and compromised/reaper collections. Most important thing: with update generator, you can set seqUpdate.
 	```
 	generator = poller.create_update_generator(collection_name='compromised/account', date_from='2021-01-30', date_to='2021-02-03', query='8.8.8.8', sequpdate=20000000, limit=200)
 	```
 
-4. Each portion will be presented in object of **Parser** class. You can get raw data in json format or python dictionary format. For the update generator, you can get the last feed *sequpdate* to save it locally, *count* shows you the number of feeds that still in the queue. For search generator *count* will return total number of feeds in the queue. *Parse_portion* and *get_iocs* methods use you keys and iocs_keys to return transformed data like on example below. Also you can reset keys using *set_keys* and *set_iocs_keys* for current **Parser** object. It is similar to point 2 but requires only keys.
+4. Each portion will be presented in object of **Parser** class. You can get raw data in json format or python dictionary format. For the update generator, you can get the last feed *sequpdate* to save it locally, *count* shows you the number of feeds that still in the queue. For search generator *count* will return total number of feeds in the queue. *Parse_portion* and *get_iocs* methods use your keys and iocs_keys to return transformed data like on the example below. Also you can reset keys using *set_keys* and *set_iocs_keys* for current **Parser** object. It is similar to point 2 but requires only keys.
 	```
 	for portion in generator:  
 	    parsed_json = portion.parse_portion(as_json=False)  
@@ -63,7 +63,7 @@
 	```python
 	iocs = {'ips': [1, 2, 3, 4, 5], 'url': ['url.com', 'new_url.com']}
 	```
-5. You can find specific feed by **id** with this command that also returns **Parser** object. Or you can get binary file from threats.
+5. You can find specific feed by **id** with this command that also returns **Parser** object. Or you can get binary file from threat reports.
 	```python
 	feed = poller.search_feed_by_id(collection_name='compromised/account', feed_id='some_id')  
 	parsed_feed = feed.parse_portion()  
@@ -88,7 +88,7 @@
 	    pass
 	```
 
-7. Also you can use some additional functions if you need. You should use get_available_collections because in API response you can get collections that you can't work with.
+7. Also you can use some additional functions if you need. You should use get_available_collections because in API response you can get collections that you have no access to.
 	```python
 	collection_list = poller.get_available_collections()  
 	seq_update_dict = poller.get_seq_update_dict(date='2020-12-12')  
@@ -108,22 +108,21 @@
 	
 	try:
 	    poller = TIAPoller(username=username, api_key=api_key)
-		poller.set_proxies({"https": proxy_protocol + "://" + proxy_user + ":" + proxy_password + "@" +  proxy_ip + ":" + proxy_port})
-		poller.set_verify(True)
-		for collection, keys in keys_config.items():
-		    poller.set_keys(collection, keys)
-			
-		for collection, state in update_generator_config.items():
-		    if state.get("sequpdate"):
-		        generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
-		    elif state.get("date_from"):
-		        generator = poller.create_update_generator(collection_name=collection, date_from=state.get("date_from"))
-		    else:
-		        continue
-		    for portion in generator:
-		        parsed_portion = portion.parse_portion()
-			save_portion(parsed_portion)
-			update_generator_config[collection]["sequpdate"] = portion.sequpdate
+	    poller.set_proxies({"https": proxy_protocol + "://" + proxy_user + ":" + proxy_password + "@" +  proxy_ip + ":" + proxy_port})
+	    poller.set_verify(True)
+	    for collection, keys in keys_config.items():
+	    poller.set_keys(collection, keys)	
+	    for collection, state in update_generator_config.items():
+	        if state.get("sequpdate"):
+		    generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
+		elif state.get("date_from"):
+		    generator = poller.create_update_generator(collection_name=collection, date_from=state.get("date_from"))
+		else:
+		    continue
+		for portion in generator:
+		    parsed_portion = portion.parse_portion()
+	            save_portion(parsed_portion)
+		    update_generator_config[collection]["sequpdate"] = portion.sequpdate
 			
 	except InputException as e:
 	    logging.exception("Wrong input: {0}".format(e))
