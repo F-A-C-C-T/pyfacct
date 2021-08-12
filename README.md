@@ -1,3 +1,4 @@
+
 ﻿
 ## **How to use**
 1. First of all you need to initialize Poller with your credentials and set proxy (if you use it), whitelisted by GROUP-IB. Proxy must be in request-like format. Also, you can change the verification of the HTTPS certificate (False by default).
@@ -64,15 +65,14 @@
 	For bulk_parse_portion you will receive:
 	```python
 	parsed_json = [
-          [
-	      {'ips': [[1, 2], [3]]}, 
-	      {'url': ['url.com', '']}
-	  ],
-
-          [
-	      {'ips': [[4, 5]]}, 
-	      {'url': ['new_url.com']}
-	  ]
+	    [
+	        {'ips': [[1, 2], [3]]}, 
+	        {'url': ['url.com', '']}
+	    ],
+	    [
+	        {'ips': [[4, 5]]}, 
+	        {'url': ['new_url.com']}
+	    ]
     ]
 	```
 5. You can find specific feed by **id** with this command that also returns **Parser** object. Or you can get binary file from threat reports.
