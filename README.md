@@ -1,4 +1,4 @@
-﻿
+
 ﻿
 ## **How to use**
 1. First of all you need to initialize Poller with your credentials and set proxy (if you use it), whitelisted by GROUP-IB. Proxy must be in request-like format. Also, you can change the verification of the HTTPS certificate (False by default).
@@ -21,7 +21,7 @@
 	generator = poller.create_update_generator(collection_name='compromised/account', date_from='2021-01-30', date_to='2021-02-03', query='8.8.8.8', sequpdate=20000000, limit=200)
 	```
 
-4. Each portion will be presented in object of **Parser** class. You can get raw data in json format or python dictionary format. For the update generator, you can get the last feed *sequpdate* to save it locally, *count* shows you the number of feeds that still in the queue. For search generator *count* will return total number of feeds in the queue. *Parse_portion* and *get_iocs* methods use your keys and iocs_keys to return transformed data like on the example below. Also you can reset keys using *set_keys* and *set_iocs_keys* for current **Parser** object. It is similar to point 2 but requires only keys.
+4. Each portion will be presented in object of **Parser** class. You can get raw data in json format or python dictionary format. For the update generator, you can get the last feed *sequpdate* to save it locally, *count* shows you the number of feeds that still in the queue. For search generator *count* will return total number of feeds in the queue. *Parse_portion* and *get_iocs* methods use your keys and iocs_keys to return transformed data like on the example below, also you can override keys using *keys* parameter in this functions. Also you can use *bulk_parse_portion* function to get multiple parsed dicts from every feed.
 	```
 	for portion in generator:  
 	    parsed_json = portion.parse_portion(as_json=False)  
@@ -30,8 +30,7 @@
 	    count = portion.count  
 	    raw_json = portion.raw_json  
 	    raw_dict = portion.raw_dict
-	    portion.set_keys({"ips": "indicators.params.ip"})
-	    new_parsed_json = portion.parse_portion(as_json=False)  
+	    new_parsed_json = portion.bulk_parse_portion(keys_list=[{"ips": "indicators.params.ip"}, {"url": 'indicators.params.url'}], as_json=False)  
 	```
 	For example, if you use keys and Iocs_keys from point 2 for list of feeds:  
 	```python
@@ -62,6 +61,19 @@
 	For get_iocs you will receive:
 	```python
 	iocs = {'ips': [1, 2, 3, 4, 5], 'url': ['url.com', 'new_url.com']}
+	```
+	For bulk_parse_portion you will receive:
+	```python
+	parsed_json = [
+	    [
+	        {'ips': [[1, 2], [3]]}, 
+	        {'url': ['url.com', '']}
+	    ],
+	    [
+	        {'ips': [[4, 5]]}, 
+	        {'url': ['new_url.com']}
+	    ]
+    ]
 	```
 5. You can find specific feed by **id** with this command that also returns **Parser** object. Or you can get binary file from threat reports.
 	```python
