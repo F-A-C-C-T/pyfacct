@@ -397,109 +397,66 @@ class Parser(object):
             raw_dict = [self.raw_dict]
         return raw_dict
 
-    def set_keys(self, keys: Dict[str, str]):
-        """
-        Sets keys to search in the current portion of feeds. `keys` should be python dict in this format:
-        {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
-        so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``. If you want to add your own data
-        to the results start your data_you_want_to_find with *. You also can make a full template to nest data
-        in the way you want.
-
-        For example:
-        Keys {'network': {'ips': 'iocs.network.ip'}, 'url': 'iocs.network.url', 'type': '*network'} for list of feeds:
-
-        [
-            {
-                'iocs': {
-                    'network':
-                        [{'ip': [1, 2], 'url': 'url.com'}, {'ip': [3], 'url': ''}]
-                }
-            },
-
-            {
-                'iocs': {
-                    'network':
-                        [{'ip': [4, 5], 'url': 'new_url.com'}]
-                }
-            }
-        ]
-
-        return this
-
-        [
-            {'network': {'ips': [[1, 2], [3]]}, 'url': ['url.com', ''], 'type': 'network'},
-
-            {'network': {'ips': [[4, 5]]}git , 'url': ['new_url.com'], 'type': 'network'}
-        ]
-
-        :param keys: python dict with keys to get from parse.
-        """
-        Validator.validate_set_keys_input(keys)
-        self.keys = keys
-
-    def set_iocs_keys(self, keys: Dict[str, str]):
-        """
-        Sets keys to search IOCs in the current portion of feeds. `keys` should be the python dict in this format:
-        {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
-        so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``.
-
-        For example:
-        Keys {'ips': 'iocs.network.ip', 'url': 'iocs.network.url'} for list of feeds:
-
-        [
-            {
-                'iocs': {
-                    'network':
-                        [{'ip': [1, 2], 'url': 'url.com'}, {'ip': [3], url: ""}]
-                }
-            },
-
-            {
-                'iocs': {
-                    'network':
-                        [{'ip': [4, 5], 'url': 'new_url.com'}]
-                }
-            }
-        ]
-
-        return this `{'ips': [1, 2, 3, 4, 5], 'url': ['url.com', 'new_url.com']}`.
-
-        :param keys: python dict with keys to get from parse.
-        """
-        Validator.validate_set_iocs_keys_input(keys)
-        self.iocs_keys = keys
-
-    def parse_portion(self, as_json: Optional[bool] = False) -> Union[str, List[Dict[Any, Any]]]:
+    def parse_portion(self, keys: Optional[Dict[any, str]] = None,
+                      as_json: Optional[bool] = False) -> Union[str, List[Dict[Any, Any]]]:
         """
         Returns parsed portion of feeds using keys provided for current collection.
         Every dict in list is one parsed feed.
 
+        :param keys: if provided override base keys set in poller.
         :param as_json: if True returns portion in JSON format.
         """
-        if not self.keys:
+        if not self.keys and not keys:
             raise ParserException("You didn't provide any keys for parsing portion.")
+        if keys:
+            Validator.validate_set_keys_input(keys)
         parsed_portion = []
         raw_dict = self._return_items_list()
         for feed in raw_dict:
-            parsed_dict = ParserHelper.find_by_template(feed, self.keys)
+            parsed_dict = ParserHelper.find_by_template(feed, keys if keys else self.keys)
             parsed_portion.append(parsed_dict)
 
         if as_json:
             return json.dumps(parsed_portion)
         return parsed_portion
 
-    def get_iocs(self, as_json: Optional[bool] = False) -> Union[str, Dict[str, List]]:
+    def bulk_parse_portion(self, keys_list: List[Dict[any, str]],
+                           as_json: Optional[bool] = False) -> Union[str, List[List[Dict[Any, Any]]]]:
+        """
+        Parses feeds in portion using every keys dict in the list.
+        Every feed in parsed portion will be presented as list with parsed dicts for every keys dict.
+
+        :param keys_list: list of keys dicts you want in return.
+        :param as_json: if True returns portion in JSON format.
+        """
+        parsed_portion = []
+        for keys in keys_list:
+            parsed_portion.append(self.parse_portion(keys=keys))
+        parsed_portion = [list(a) for a in zip(*parsed_portion)]
+
+        if as_json:
+            return json.dumps(parsed_portion)
+        return parsed_portion
+
+    def get_iocs(self, keys: Optional[Dict] = None,
+                 as_json: Optional[bool] = False) -> Union[str, Dict[str, List]]:
         """
         Returns dict of IOCs parsed from portion of feeds for current collection.
         Keys are IOCs fields to search for current collection, values are list of IOCs for current portion.
 
+        :param keys: if provided override base iocs_keys set in poller.
         :param as_json: if True returns iocs in JSON format.
         """
-        if not self.iocs_keys:
+        if not self.iocs_keys and not keys:
             raise ParserException("You didn't provide any keys for getting IOCs.")
+        if keys:
+            Validator.validate_set_iocs_keys_input(keys)
+            iocs_keys = keys
+        else:
+            iocs_keys = self.iocs_keys
         iocs_dict = {}
         raw_dict = self._return_items_list()
-        for key, value in self.iocs_keys.items():
+        for key, value in iocs_keys.items():
             iocs = []
             for feed in raw_dict:
                 ioc = ParserHelper.find_element_by_key(obj=feed, key=value)
