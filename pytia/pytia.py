@@ -228,11 +228,11 @@ class TIAPoller(object):
             sequpdate = portion.sequpdate
             date_from = None
             pytia_logger.info('{0} portion was loaded'.format(i))
-            if portion.count == 0:
+            if portion.portion_size == 0:
                 pytia_logger.info('Update session for {0} collection was finished, '
                                   'loaded {1} feeds'.format(collection_name, total_amount))
                 break
-            total_amount += len(portion.raw_dict.get('items'))
+            total_amount += portion.portion_size
             yield portion
 
     def create_search_generator(self, collection_name: str, date_from: str = None, date_to: Optional[str] = None,
@@ -279,11 +279,11 @@ class TIAPoller(object):
             result_id = portion._result_id
             date_from, date_to, query = None, None, None
             pytia_logger.info('{0} portion was loaded'.format(i))
-            if len(portion.raw_dict.get('items')) == 0:
+            if portion.portion_size == 0:
                 pytia_logger.info('Search session for {0} collection was finished, '
                                   'loaded {1} feeds'.format(collection_name, total_amount))
                 break
-            total_amount += len(portion.raw_dict.get('items'))
+            total_amount += portion.portion_size
             yield portion
 
     def search_feed_by_id(self, collection_name: str, feed_id: str):
@@ -383,12 +383,13 @@ class Parser(object):
         :param iocs_keys: IOCs to find in portion.
         """
         self.raw_dict = chunk
+        self.raw_json = json.dumps(chunk)
         self.iocs_keys = iocs_keys
         self.keys = keys
-        self.raw_json = json.dumps(chunk)
-        self._result_id = self.raw_dict.get('resultId', None)
         self.count = self.raw_dict.get('count', None)
+        self.portion_size = len(self.raw_dict.get('items'))
         self.sequpdate = self.raw_dict.get('seqUpdate', None)
+        self._result_id = self.raw_dict.get('resultId', None)
 
     def _return_items_list(self):
         if self.count is not None:
