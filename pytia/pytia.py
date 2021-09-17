@@ -387,7 +387,7 @@ class Parser(object):
         self.iocs_keys = iocs_keys
         self.keys = keys
         self.count = self.raw_dict.get('count', None)
-        self.portion_size = len(self.raw_dict.get('items'))
+        self.portion_size = len(self._return_items_list())
         self.sequpdate = self.raw_dict.get('seqUpdate', None)
         self._result_id = self.raw_dict.get('resultId', None)
 
