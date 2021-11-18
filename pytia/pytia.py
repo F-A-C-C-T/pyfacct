@@ -15,6 +15,7 @@ from typing import Union, Optional, List, Dict, Any, Generator
 from .exception import ConnectionException, ParserException
 from .const import *
 from .utils import Validator, ParserHelper
+from .state import StateManager
 
 pytia_logger = logging.getLogger("pytia")
 
@@ -177,7 +178,7 @@ class TIAPoller(object):
 
     def create_update_generator(self, collection_name: str, date_from: Optional[str] = None,
                                 date_to: Optional[str] = None, query: Optional[str] = None,
-                                sequpdate: Union[int, str] = None, limit: Union[int, str] = 200):
+                                limit: Union[int, str] = 200):
         """
         Creates generator of :class:`Parser` class objects for an update session
         (feeds are sorted in ascending order) for `collection_name` with set parameters.
@@ -218,22 +219,25 @@ class TIAPoller(object):
         url = urljoin(self._api_url, collection_name + '/updated')
         i = 0
         total_amount = 0
-        while True:
-            i += 1
-            pytia_logger.info('Loading {0} portion, starting from sequpdate={1}'.format(i, sequpdate))
-            chunk = self._send_request(url=url, params={'df': date_from, 'dt': date_to, 'q': query,
-                                                        'limit': limit, 'seqUpdate': sequpdate})
-            portion = Parser(chunk, self._keys.get(collection_name, []),
-                             self._iocs_keys.get(collection_name, []))
-            sequpdate = portion.sequpdate
-            date_from = None
-            pytia_logger.info('{0} portion was loaded'.format(i))
-            if portion.portion_size == 0:
-                pytia_logger.info('Update session for {0} collection was finished, '
-                                  'loaded {1} feeds'.format(collection_name, total_amount))
-                break
-            total_amount += portion.portion_size
-            yield portion
+        with StateManager() as state_manager:
+            sequpdate = state_manager.load(collection_name)
+            while True:
+                i += 1
+                pytia_logger.info('Loading {0} portion, starting from sequpdate={1}'.format(i, sequpdate))
+                chunk = self._send_request(url=url, params={'df': date_from, 'dt': date_to, 'q': query,
+                                                            'limit': limit, 'seqUpdate': sequpdate})
+                portion = Parser(chunk, self._keys.get(collection_name, []),
+                                self._iocs_keys.get(collection_name, []))
+                sequpdate = portion.sequpdate
+                state_manager.dump(collection_name, sequpdate)
+                date_from = None
+                pytia_logger.info('{0} portion was loaded'.format(i))
+                if portion.portion_size == 0:
+                    pytia_logger.info('Update session for {0} collection was finished, '
+                                    'loaded {1} feeds'.format(collection_name, total_amount))
+                    break
+                total_amount += portion.portion_size
+                yield portion
 
     def create_search_generator(self, collection_name: str, date_from: str = None, date_to: Optional[str] = None,
                                 query: Optional[str] = None, limit: Union[str, int] = 200):
