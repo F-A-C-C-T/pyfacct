@@ -16,8 +16,6 @@ from .exception import ConnectionException, ParserException
 from .const import *
 from .utils import Validator, ParserHelper
 
-pytia_logger = logging.getLogger("pytia")
-
 
 class TIAPoller(object):
     """
@@ -41,6 +39,7 @@ class TIAPoller(object):
         self._keys = {}
         self._iocs_keys = {}
         self._mount_adapter_with_retries()
+        self.logger = logging.getLogger("pytia")
 
     def __enter__(self):
         return self
@@ -191,9 +190,9 @@ class TIAPoller(object):
         has been detected as active again), the item gets a new parameter and it automatically rises in the database
         and "becomes relevant" again.
 
-        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssz".
+        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssZ".
         For most collections, limits are set on the server and can't be exceeded.
-
+giy
         :param collection_name: collection to update.
         :param date_from: start date of update session.
         :param date_to: end date of update session.
@@ -242,7 +241,7 @@ class TIAPoller(object):
         (feeds are sorted in descending order, **excluding compromised/breached amd compromised/reaper**)
         for `collection_name` with set parameters.
 
-        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssz".
+        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssZ".
         For most collections, limits are set on the server and can't be exceeded.
 
         :param collection_name: collection to search.
