@@ -176,7 +176,7 @@ class TIAPoller(object):
         Validator.validate_set_iocs_keys_input(keys)
         self._iocs_keys[collection_name] = keys
 
-     def create_update_generator(self, collection_name: str, date_from: Optional[str] = None,
+    def create_update_generator(self, collection_name: str, date_from: Optional[str] = None,
                                 date_to: Optional[str] = None, query: Optional[str] = None,
                                 sequpdate: Union[int, str] = None, limit: Union[int, str] = 200):
         """
