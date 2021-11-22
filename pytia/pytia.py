@@ -15,7 +15,6 @@ from typing import Union, Optional, List, Dict, Any, Generator
 from .exception import ConnectionException, ParserException
 from .const import *
 from .utils import Validator, ParserHelper
-from .state import StateManager
 
 logger = logging.getLogger(__name__)
 

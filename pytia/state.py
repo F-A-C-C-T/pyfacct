@@ -1,6 +1,6 @@
 import json
 import pathlib
-from typing import ParamSpec, Union
+from typing import Union
 
 
 class StateManager:
@@ -32,4 +32,4 @@ class StateManager:
         except json.decoder.JSONDecodeError:
             return None
         sequpdate = self.state_file_entry.get(name_of_collection)
-        return sequpdate if sequpdate != 0 else None  
+        return sequpdate if sequpdate != 0 else None
