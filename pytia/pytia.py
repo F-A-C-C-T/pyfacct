@@ -17,7 +17,7 @@ from .const import *
 from .utils import Validator, ParserHelper
 from .state import StateManager
 
-pytia_logger = logging.getLogger("pytia")
+logger = logging.getLogger(__name__)
 
 
 class TIAPoller(object):
@@ -190,8 +190,10 @@ class TIAPoller(object):
         If item updates (for example, if new attacks were associated with existing APT by our specialists or tor node
         has been detected as active again), the item gets a new parameter and it automatically rises in the database
         and "becomes relevant" again.
-        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssz".
+
+        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssZ".
         For most collections, limits are set on the server and can't be exceeded.
+
         :param collection_name: collection to update.
         :param date_from: start date of update session.
         :param date_to: end date of update session.
@@ -211,24 +213,24 @@ class TIAPoller(object):
                 date=date_to,
                 formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
             )
-        pytia_logger.info('Starting update session for {0} collection'.format(collection_name))
+        logger.info('Starting update session for {0} collection'.format(collection_name))
         limit = int(limit)
         url = urljoin(self._api_url, collection_name + '/updated')
         i = 0
         total_amount = 0
         while True:
             i += 1
-            pytia_logger.info('Loading {0} portion, starting from sequpdate={1}'.format(i, sequpdate))
+            logger.info('Loading {0} portion, starting from sequpdate={1}'.format(i, sequpdate))
             chunk = self._send_request(url=url, params={'df': date_from, 'dt': date_to, 'q': query,
                                                         'limit': limit, 'seqUpdate': sequpdate})
             portion = Parser(chunk, self._keys.get(collection_name, []),
                              self._iocs_keys.get(collection_name, []))
             sequpdate = portion.sequpdate
             date_from = None
-            pytia_logger.info('{0} portion was loaded'.format(i))
+            logger.info('{0} portion was loaded'.format(i))
             if portion.portion_size == 0:
-                pytia_logger.info('Update session for {0} collection was finished, '
-                                  'loaded {1} feeds'.format(collection_name, total_amount))
+                logger.info('Update session for {0} collection was finished, '
+                            'loaded {1} feeds'.format(collection_name, total_amount))
                 break
             total_amount += portion.portion_size
             yield portion
@@ -240,7 +242,7 @@ class TIAPoller(object):
         (feeds are sorted in descending order, **excluding compromised/breached amd compromised/reaper**)
         for `collection_name` with set parameters.
 
-        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssz".
+        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssZ".
         For most collections, limits are set on the server and can't be exceeded.
 
         :param collection_name: collection to search.
@@ -261,7 +263,7 @@ class TIAPoller(object):
                 date=date_to,
                 formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
             )
-        pytia_logger.info('Starting search session for {0} collection'.format(collection_name))
+        logger.info('Starting search session for {0} collection'.format(collection_name))
         limit = int(limit)
         result_id = None
         url = urljoin(self._api_url, collection_name)
@@ -269,17 +271,17 @@ class TIAPoller(object):
         total_amount = 0
         while True:
             i += 1
-            pytia_logger.info('Loading {0} portion'.format(i))
+            logger.info('Loading {0} portion'.format(i))
             chunk = self._send_request(url=url, params={'df': date_from, 'dt': date_to, 'q': query,
                                                         'limit': limit, 'resultId': result_id})
             portion = Parser(chunk, self._keys.get(collection_name, []),
                              self._iocs_keys.get(collection_name, []))
             result_id = portion._result_id
             date_from, date_to, query = None, None, None
-            pytia_logger.info('{0} portion was loaded'.format(i))
+            logger.info('{0} portion was loaded'.format(i))
             if portion.portion_size == 0:
-                pytia_logger.info('Search session for {0} collection was finished, '
-                                  'loaded {1} feeds'.format(collection_name, total_amount))
+                logger.info('Search session for {0} collection was finished, '
+                            'loaded {1} feeds'.format(collection_name, total_amount))
                 break
             total_amount += portion.portion_size
             yield portion
