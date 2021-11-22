@@ -176,70 +176,7 @@ class TIAPoller(object):
         Validator.validate_set_iocs_keys_input(keys)
         self._iocs_keys[collection_name] = keys
 
-    def create_update_generator(self, collection_name: str, date_from: Optional[str] = None,
-                                date_to: Optional[str] = None, query: Optional[str] = None,
-                                limit: Union[int, str] = 200):
-        """
-        Creates generator of :class:`Parser` class objects for an update session
-        (feeds are sorted in ascending order) for `collection_name` with set parameters.
-
-        `sequpdate` allows you to receive all relevant feeds. Such a request uses the sequpdate parameter,
-        you will receive a portion of feeds that starts with the next `sequpdate` parameter for the current collection.
-        For all feeds in the Group IB Intelligence continuous numbering is carried out.
-        For example, the `sequpdate` equal to 1999998 can be in the `compromised/accounts` collection,
-        and a feed with sequpdate equal to 1999999 can be in the `attacks/ddos` collection.
-        If item updates (for example, if new attacks were associated with existing APT by our specialists or tor node
-        has been detected as active again), the item gets a new parameter and it automatically rises in the database
-        and "becomes relevant" again.
-
-        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssz".
-        For most collections, limits are set on the server and can't be exceeded.
-
-        :param collection_name: collection to update.
-        :param date_from: start date of update session.
-        :param date_to: end date of update session.
-        :param query: query to search during update session.
-        :param sequpdate: identification number from which to start the session.
-        :param limit: size of portion in iteration.
-        :rtype: Generator[:class:`Parser`]
-        """
-        Validator.validate_collection_name(collection_name, method="update")
-        if date_from:
-            Validator.validate_date_format(
-                date=date_from,
-                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
-            )
-        if date_to:
-            Validator.validate_date_format(
-                date=date_to,
-                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
-            )
-        pytia_logger.info('Starting update session for {0} collection'.format(collection_name))
-        limit = int(limit)
-        url = urljoin(self._api_url, collection_name + '/updated')
-        i = 0
-        total_amount = 0
-        with StateManager() as state_manager:
-            sequpdate = state_manager.load(collection_name)
-            while True:
-                i += 1
-                pytia_logger.info('Loading {0} portion, starting from sequpdate={1}'.format(i, sequpdate))
-                chunk = self._send_request(url=url, params={'df': date_from, 'dt': date_to, 'q': query,
-                                                            'limit': limit, 'seqUpdate': sequpdate})
-                portion = Parser(chunk, self._keys.get(collection_name, []),
-                                self._iocs_keys.get(collection_name, []))
-                sequpdate = portion.sequpdate
-                state_manager.dump(collection_name, sequpdate)
-                date_from = None
-                pytia_logger.info('{0} portion was loaded'.format(i))
-                if portion.portion_size == 0:
-                    pytia_logger.info('Update session for {0} collection was finished, '
-                                    'loaded {1} feeds'.format(collection_name, total_amount))
-                    break
-                total_amount += portion.portion_size
-                yield portion
-
-    def create_update_generator(self, collection_name: str, date_from: Optional[str] = None,
+     def create_update_generator(self, collection_name: str, date_from: Optional[str] = None,
                                 date_to: Optional[str] = None, query: Optional[str] = None,
                                 sequpdate: Union[int, str] = None, limit: Union[int, str] = 200):
         """
@@ -291,6 +228,57 @@ class TIAPoller(object):
             pytia_logger.info('{0} portion was loaded'.format(i))
             if portion.portion_size == 0:
                 pytia_logger.info('Update session for {0} collection was finished, '
+                                  'loaded {1} feeds'.format(collection_name, total_amount))
+                break
+            total_amount += portion.portion_size
+            yield portion
+
+    def create_search_generator(self, collection_name: str, date_from: str = None, date_to: Optional[str] = None,
+                                query: Optional[str] = None, limit: Union[str, int] = 200):
+        """
+        Creates generator of :class:`Parser` class objects for the search session 
+        (feeds are sorted in descending order, **excluding compromised/breached amd compromised/reaper**)
+        for `collection_name` with set parameters.
+
+        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssz".
+        For most collections, limits are set on the server and can't be exceeded.
+
+        :param collection_name: collection to search.
+        :param date_from: start date of search session.
+        :param date_to: end date of search session.
+        :param query: query to search during session.
+        :param limit: size of portion in iteration.
+        :rtype: Generator[:class:`Parser`]
+        """
+        Validator.validate_collection_name(collection_name, method="search")
+        if date_from:
+            Validator.validate_date_format(
+                date=date_from,
+                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
+            )
+        if date_to:
+            Validator.validate_date_format(
+                date=date_to,
+                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
+            )
+        pytia_logger.info('Starting search session for {0} collection'.format(collection_name))
+        limit = int(limit)
+        result_id = None
+        url = urljoin(self._api_url, collection_name)
+        i = 0
+        total_amount = 0
+        while True:
+            i += 1
+            pytia_logger.info('Loading {0} portion'.format(i))
+            chunk = self._send_request(url=url, params={'df': date_from, 'dt': date_to, 'q': query,
+                                                        'limit': limit, 'resultId': result_id})
+            portion = Parser(chunk, self._keys.get(collection_name, []),
+                             self._iocs_keys.get(collection_name, []))
+            result_id = portion._result_id
+            date_from, date_to, query = None, None, None
+            pytia_logger.info('{0} portion was loaded'.format(i))
+            if portion.portion_size == 0:
+                pytia_logger.info('Search session for {0} collection was finished, '
                                   'loaded {1} feeds'.format(collection_name, total_amount))
                 break
             total_amount += portion.portion_size
