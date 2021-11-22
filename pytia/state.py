@@ -1,12 +1,7 @@
 import json
-from os import name
-from typing import Union
+import pathlib
+from typing import ParamSpec, Union
 
-
-def create_file(name_of_file) -> None:
-    file = open(name_of_file, "w")
-    file.write("")
-    file.close()
 
 class StateManager:
     def __init__(self) -> None:
@@ -18,7 +13,7 @@ class StateManager:
         try:
             self.state_stream = open(self.NAME_OF_STATE_FILE, "r+")
         except FileNotFoundError:
-            create_file(self.NAME_OF_STATE_FILE)
+            pathlib.Path(self.NAME_OF_STATE_FILE).touch()
             self.state_stream = open(self.NAME_OF_STATE_FILE, "r+")
         return self
 
