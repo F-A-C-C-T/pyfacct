@@ -1,44 +1,6 @@
 from datetime import datetime
 from .exception import InputException
 from .const import CollectionConsts
-import logging
-
-
-class Logger(object):
-    # to catch logs from python libraries
-    @staticmethod
-    def init_root_logger():
-        if not os.path.exists(LOGS_DIRECTORY):
-            os.mkdir(LOGS_DIRECTORY)
-        if os.path.exists("{0}/{1}".format(LOGS_DIRECTORY, CURRENT_SESSION_LOG_FILE)):
-            os.remove("{0}/{1}".format(LOGS_DIRECTORY, CURRENT_SESSION_LOG_FILE))
-        logger = logging.getLogger()
-        logger.setLevel(logging.DEBUG)
-        console_handler = logging.StreamHandler()
-        session_handler = logging.FileHandler(filename="{0}/{1}".format(LOGS_DIRECTORY, CURRENT_SESSION_LOG_FILE))
-        all_time_handler = logging.FileHandler(filename="{0}/{1}".format(LOGS_DIRECTORY, ALL_TIME_LOG_FILE))
-        console_handler.setLevel(logging.INFO)
-        session_handler.setLevel(logging.DEBUG)
-        all_time_handler.setLevel(logging.WARNING)
-
-        console_format = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-        file_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        console_handler.setFormatter(console_format)
-        session_handler.setFormatter(file_format)
-        all_time_handler.setFormatter(file_format)
-
-        logger.addHandler(console_handler)
-        logger.addHandler(session_handler)
-        logger.addHandler(all_time_handler)
-        return logger
-
-    @staticmethod
-    def init_logger(name=None):
-        if not os.path.exists(LOGS_DIRECTORY):
-            os.mkdir(LOGS_DIRECTORY)
-        logger = logging.getLogger(name)
-        logger.propagate = True
-        return logger
 
 
 class Validator(object):
