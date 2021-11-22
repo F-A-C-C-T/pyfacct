@@ -15,6 +15,7 @@ from typing import Union, Optional, List, Dict, Any, Generator
 from .exception import ConnectionException, ParserException
 from .const import *
 from .utils import Validator, ParserHelper
+from .state import StateManager
 
 pytia_logger = logging.getLogger("pytia")
 
@@ -181,7 +182,6 @@ class TIAPoller(object):
         """
         Creates generator of :class:`Parser` class objects for an update session
         (feeds are sorted in ascending order) for `collection_name` with set parameters.
-
         `sequpdate` allows you to receive all relevant feeds. Such a request uses the sequpdate parameter,
         you will receive a portion of feeds that starts with the next `sequpdate` parameter for the current collection.
         For all feeds in the Group IB Intelligence continuous numbering is carried out.
@@ -190,10 +190,8 @@ class TIAPoller(object):
         If item updates (for example, if new attacks were associated with existing APT by our specialists or tor node
         has been detected as active again), the item gets a new parameter and it automatically rises in the database
         and "becomes relevant" again.
-
         .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssz".
         For most collections, limits are set on the server and can't be exceeded.
-
         :param collection_name: collection to update.
         :param date_from: start date of update session.
         :param date_to: end date of update session.
