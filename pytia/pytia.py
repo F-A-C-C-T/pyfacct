@@ -91,11 +91,18 @@ class TIAPoller(object):
         """
         self._session.proxies = proxies
 
-    def set_verify(self, verify: bool):
+    def set_verify(self, verify: Union[bool, str]):
         """
         Sets verify for `Session` object.
 
-        :param verify: true for verify certificate, false for requests without verifying.
+        :param verify: Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a string, in which case it must be a path
+            to a CA bundle to use. Defaults to ``True``. When set to
+            ``False``, requests will accept any TLS certificate presented by
+            the server, and will ignore hostname mismatches and/or expired
+            certificates, which will make your application vulnerable to
+            man-in-the-middle (MitM) attacks. Setting verify to ``False``
+            may be useful during local development or testing.
         """
         self._session.verify = verify
 
