@@ -356,9 +356,8 @@ class TIAPoller(object):
         seq_update_dict = self.get_seq_update_dict()
         collections_list = list(seq_update_dict.keys())
         for collection_name in CollectionConsts.ONLY_SEARCH_COLLECTIONS:
-            url = urljoin(self._api_url, collection_name)
             try:
-                self._send_request(url=url, params={})
+                self.send_request(endpoint=collection_name, params={})
                 collections_list.append(collection_name)
             except Exception as e:
                 pass
