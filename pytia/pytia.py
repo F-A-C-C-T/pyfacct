@@ -355,7 +355,13 @@ class TIAPoller(object):
         """
         seq_update_dict = self.get_seq_update_dict()
         collections_list = list(seq_update_dict.keys())
-        collections_list.extend(CollectionConsts.ONLY_SEARCH_COLLECTIONS)
+        for collection_name in CollectionConsts.ONLY_SEARCH_COLLECTIONS:
+            url = urljoin(self._api_url, collection_name)
+            try:
+                self._send_request(url=url, params={})
+                collections_list.append(collection_name)
+            except Exception as e:
+                pass
         return collections_list
 
     def close_session(self):
