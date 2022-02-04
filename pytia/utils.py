@@ -7,24 +7,21 @@ class Validator(object):
     @classmethod
     def validate_collection_name(cls, collection_name, method=None):
         if method == "update" and collection_name in CollectionConsts.ONLY_SEARCH_COLLECTIONS:
-            raise InputException("{0} collection must be used only with a search generator.".format(collection_name))
+            raise InputException(f"{collection_name} collection must be used only with a search generator.")
         collection_names = CollectionConsts.COLLECTIONS_INFO.keys()
         if collection_name not in collection_names:
-            raise InputException('Invalid collection name {0}, '
-                                 'should be one of this {1}'.format(collection_name, ", ".join(collection_names)))
+            raise InputException(f"Invalid collection name {collection_name}, "
+                                 f"should be one of this {', '.join(collection_names)}")
 
     @classmethod
     def validate_date_format(cls, date, formats):
-        flag = 1
         for i in formats:
             try:
                 datetime.strptime(date, i)
-                flag = 0
-                break
+                return
             except (TypeError, ValueError):
                 pass
-        if flag:
-            raise InputException("""Invalid date, please use one of this formats: {0}.""".format(', '.join(formats)))
+        raise InputException(f"Invalid date {date}, please use one of this formats: {', '.join(formats)}.")
 
     @classmethod
     def validate_set_iocs_keys_input(cls, keys):

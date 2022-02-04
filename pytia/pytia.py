@@ -4,19 +4,59 @@ This module contains poller for GIB TI&A.
 
 """
 
-import requests
+from dataclasses import dataclass
 import json
 import logging
 from urllib.parse import urljoin, urlencode
+from typing import Union, Optional, List, Dict, Any, Generator
+
+import requests
 from requests.auth import HTTPBasicAuth
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-from typing import Union, Optional, List, Dict, Any, Generator
+
 from .exception import ConnectionException, ParserException
 from .const import *
 from .utils import Validator, ParserHelper
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(order=True)
+class GeneratorInfo(object):
+    collection_name: str
+    session_type: str
+    date_from: str = None
+    date_to: Optional[str] = None
+    query: Optional[str] = None
+    limit: Union[str, int] = 200
+    keys: Optional[Dict[any, str]] = None
+    iocs_keys: Optional[Dict] = None
+
+    def __validate_default_fields(self) -> None:
+        """
+        Function for field validation. This function must always be called in __post_init__.
+        """
+        Validator.validate_collection_name(self.collection_name, method=self.session_type)
+        if self.date_from:
+            Validator.validate_date_format(
+                date=self.date_from,
+                formats=CollectionConsts.COLLECTIONS_INFO.get(self.collection_name).get("date_formats")
+            )
+        if self.date_to:
+            Validator.validate_date_format(
+                date=self.date_to,
+                formats=CollectionConsts.COLLECTIONS_INFO.get(self.collection_name).get("date_formats")
+            )
+        # todo: прикрутить нормальную проверку
+        int(self.limit)
+
+    def __post_init__(self) -> None:
+        """
+
+        This function is called after __init__ and is used to validate input data.
+        """
+        self.__validate_default_fields()
 
 
 class TIAPoller(object):
@@ -62,26 +102,30 @@ class TIAPoller(object):
         self._session.mount('http://', adapter)
         self._session.mount('https://', adapter)
 
-    def _send_request(self, url, params, decode=True, **kwargs):
-        params = {k: v for k, v in params.items() if v}
-        params = urlencode(params)
+    def _status_code_handler(self, response):
+        status_code = response.status_code
+        if status_code == 200:
+            return
+        elif status_code in RequestConsts.STATUS_CODE_MSGS:
+            raise ConnectionException(
+                f"Status code: {status_code}. Message: {RequestConsts.STATUS_CODE_MSGS[status_code]}"
+            )
+        else:
+            raise ConnectionException(
+                f"Something wrong. Status code: {status_code}. Response body: {response.text}."
+            )
+
+    def send_request(self, endpoint, params, decode=True, **kwargs):
+        url = urljoin(self._api_url, endpoint)
+        params = urlencode({k: v for k, v in params.items() if v})
         try:
             response = self._session.get(url, params=params, timeout=RequestConsts.TIMEOUT)
-            status_code = response.status_code
-            if status_code == 200:
-                if decode:
-                    return response.json()
-                else:
-                    return response.content
-            elif status_code in RequestConsts.STATUS_CODE_MSGS:
-                raise ConnectionException("Status code: {0}. "
-                                          "Message: {1}".format(status_code,
-                                                                RequestConsts.STATUS_CODE_MSGS[status_code]))
-            else:
-                raise ConnectionException("Something wrong. Status code: {0}. "
-                                          "Response body: {1}.".format(status_code, response.text))
+            self._status_code_handler(response)
+            if decode:
+                return response.json()
+            return response.content
         except requests.exceptions.Timeout as e:
-            raise ConnectionException("Max retries reached. Exception message: {0}".format(e))
+            raise ConnectionException(f"Max retries reached. Exception message: {e}")
 
     def set_proxies(self, proxies: dict):
         """
@@ -105,6 +149,9 @@ class TIAPoller(object):
             may be useful during local development or testing.
         """
         self._session.verify = verify
+
+    def set_product(self, product_name: str, product_version: str = ""):
+        self._session.headers["User-Agent"] = f"pytia/{TechnicalConsts.library_version} {product_name}/{product_version}"
 
     def set_keys(self, collection_name: str, keys: Dict[str, str]):
         """
@@ -208,38 +255,12 @@ class TIAPoller(object):
         :param limit: size of portion in iteration.
         :rtype: Generator[:class:`Parser`]
         """
-        Validator.validate_collection_name(collection_name, method="update")
-        if date_from:
-            Validator.validate_date_format(
-                date=date_from,
-                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
-            )
-        if date_to:
-            Validator.validate_date_format(
-                date=date_to,
-                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
-            )
-        logger.info('Starting update session for {0} collection'.format(collection_name))
-        limit = int(limit)
-        url = urljoin(self._api_url, collection_name + '/updated')
-        i = 0
-        total_amount = 0
-        while True:
-            i += 1
-            logger.info('Loading {0} portion, starting from sequpdate={1}'.format(i, sequpdate))
-            chunk = self._send_request(url=url, params={'df': date_from, 'dt': date_to, 'q': query,
-                                                        'limit': limit, 'seqUpdate': sequpdate})
-            portion = Parser(chunk, self._keys.get(collection_name, []),
-                             self._iocs_keys.get(collection_name, []))
-            sequpdate = portion.sequpdate
-            date_from = None
-            logger.info('{0} portion was loaded'.format(i))
-            if portion.portion_size == 0:
-                logger.info('Update session for {0} collection was finished, '
-                            'loaded {1} feeds'.format(collection_name, total_amount))
-                break
-            total_amount += portion.portion_size
-            yield portion
+        session_type = "update"
+        generator_info = GeneratorInfo(collection_name, session_type, date_from, date_to, query, limit,
+                                       keys=self._keys.get(collection_name),
+                                       iocs_keys=self._iocs_keys.get(collection_name))
+        generator_class = UpdateFeedGenerator(self, generator_info, sequpdate=sequpdate)
+        return generator_class.create_generator()
 
     def create_search_generator(self, collection_name: str, date_from: str = None, date_to: Optional[str] = None,
                                 query: Optional[str] = None, limit: Union[str, int] = 200):
@@ -258,39 +279,12 @@ class TIAPoller(object):
         :param limit: size of portion in iteration.
         :rtype: Generator[:class:`Parser`]
         """
-        Validator.validate_collection_name(collection_name, method="search")
-        if date_from:
-            Validator.validate_date_format(
-                date=date_from,
-                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
-            )
-        if date_to:
-            Validator.validate_date_format(
-                date=date_to,
-                formats=CollectionConsts.COLLECTIONS_INFO.get(collection_name).get("date_formats")
-            )
-        logger.info('Starting search session for {0} collection'.format(collection_name))
-        limit = int(limit)
-        result_id = None
-        url = urljoin(self._api_url, collection_name)
-        i = 0
-        total_amount = 0
-        while True:
-            i += 1
-            logger.info('Loading {0} portion'.format(i))
-            chunk = self._send_request(url=url, params={'df': date_from, 'dt': date_to, 'q': query,
-                                                        'limit': limit, 'resultId': result_id})
-            portion = Parser(chunk, self._keys.get(collection_name, []),
-                             self._iocs_keys.get(collection_name, []))
-            result_id = portion._result_id
-            date_from, date_to, query = None, None, None
-            logger.info('{0} portion was loaded'.format(i))
-            if portion.portion_size == 0:
-                logger.info('Search session for {0} collection was finished, '
-                            'loaded {1} feeds'.format(collection_name, total_amount))
-                break
-            total_amount += portion.portion_size
-            yield portion
+        session_type = "search"
+        generator_info = GeneratorInfo(collection_name, session_type, date_from, date_to, query, limit,
+                                       keys=self._keys.get(collection_name),
+                                       iocs_keys=self._iocs_keys.get(collection_name))
+        generator_class = SearchFeedGenerator(self, generator_info)
+        return generator_class.create_generator()
 
     def search_feed_by_id(self, collection_name: str, feed_id: str):
         """
@@ -301,8 +295,8 @@ class TIAPoller(object):
         :rtype: :class:`Parser`
         """
         Validator.validate_collection_name(collection_name)
-        url = urljoin(self._api_url, collection_name + '/' + feed_id)
-        chunk = self._send_request(url=url, params={})
+        endpoint = f"{collection_name}/{feed_id}"
+        chunk = self.send_request(endpoint=endpoint, params={})
         portion = Parser(chunk, self._keys.get(collection_name, []),
                          self._iocs_keys.get(collection_name, []))
         return portion
@@ -314,8 +308,8 @@ class TIAPoller(object):
 
         :param query: in what collection to search.
         """
-        url = urljoin(self._api_url, "search")
-        response = self._send_request(url=url, params={"q": query})
+        endpoint = "search"
+        response = self.send_request(endpoint=endpoint, params={"q": query})
         return response
 
     def search_file_in_threats(self, collection_name: str, feed_id: str, file_id: str) -> bytes:
@@ -329,8 +323,8 @@ class TIAPoller(object):
         :param file_id: if of file to search.
         """
         Validator.validate_collection_name(collection_name)
-        url = urljoin(self._api_url, collection_name + '/' + feed_id + '/file/' + file_id)
-        binary_file = self._send_request(url=url, params={}, decode=False)
+        endpoint = f"{collection_name}/{feed_id}/file/{file_id}"
+        binary_file = self.send_request(endpoint=endpoint, params={}, decode=False)
         return binary_file
 
     def get_seq_update_dict(self, date: Optional[str] = None) -> Dict[str, int]:
@@ -346,11 +340,9 @@ class TIAPoller(object):
         if date:
             Validator.validate_date_format(date=date, formats=["%Y-%m-%d"])
 
-        req_url = urljoin(self._api_url, "sequence_list")
-        params = {
-            "date": date,
-        }
-        buffer_dict = self._send_request(url=req_url, params=params).get("list")
+        endpoint = "sequence_list"
+        params = {"date": date}
+        buffer_dict = self.send_request(endpoint=endpoint, params=params).get("list")
         seq_update_dict = {}
         for key in CollectionConsts.COLLECTIONS_INFO.keys():
             if key in buffer_dict.keys():
@@ -382,7 +374,7 @@ class Parser(object):
     :param dict[str, str] iocs_keys: IOCs to find in portion.
     """
 
-    def __init__(self, chunk: Dict, keys: Dict[str, str], iocs_keys: Dict[str, str]):
+    def __init__(self, chunk: Dict, keys: Dict[any, str], iocs_keys: Dict[str, str]):
         """
         :param chunk: data portion.
         :param keys: fields to find in portion.
@@ -474,3 +466,64 @@ class Parser(object):
         if as_json:
             return json.dumps(iocs_dict)
         return iocs_dict
+
+
+class FeedGenerator(object):
+    def __init__(self, poller_object: TIAPoller, generator_info: GeneratorInfo):
+        self.i = 0
+        self.total_amount = 0
+        self.poller_object = poller_object
+        self.generator_info = generator_info
+        self.endpoint = self.generator_info.collection_name
+
+    def _get_params(self):
+        return {'df': self.generator_info.date_from, 'dt': self.generator_info.date_to,
+                'q': self.generator_info.query, 'limit': self.generator_info.limit}
+
+    def _reset_params(self, portion):
+        pass
+
+    def create_generator(self):
+        logger.info(f"Starting {self.generator_info.session_type} "
+                    f"session for {self.generator_info.collection_name} collection")
+
+        while True:
+            self.i += 1
+            logger.info(f"Loading {self.i} portion")
+            chunk = self.poller_object.send_request(endpoint=self.endpoint, params=self._get_params())
+            portion = Parser(chunk, self.generator_info.keys, self.generator_info.iocs_keys)
+            logger.info(f"{self.i} portion was loaded")
+            if portion.portion_size == 0:
+                logger.info(f"{self.generator_info.session_type} session for {self.generator_info.collection_name} "
+                            f"collection was finished, loaded {self.total_amount} feeds")
+                break
+            self.total_amount += portion.portion_size
+            self._reset_params(portion)
+            yield portion
+
+
+class UpdateFeedGenerator(FeedGenerator):
+    def __init__(self, poller_object: TIAPoller, generator_info: GeneratorInfo, sequpdate):
+        super().__init__(poller_object, generator_info)
+        self.sequpdate = sequpdate
+        self.endpoint = f"{self.generator_info.collection_name}/updated"
+
+    def _get_params(self):
+        return {**super()._get_params(), "seq_update": self.sequpdate}
+
+    def _reset_params(self, portion):
+        self.sequpdate = portion.sequpdate
+        self.generator_info.date_from = None
+
+
+class SearchFeedGenerator(FeedGenerator):
+    def __init__(self, poller_object: TIAPoller, generator_info: GeneratorInfo):
+        super().__init__(poller_object, generator_info)
+        self.result_id = None
+
+    def _get_params(self):
+        return {**super()._get_params(), "resultId": self.result_id}
+
+    def _reset_params(self, portion):
+        self.result_id = portion._result_id
+        self.generator_info.date_from, self.generator_info.date_to, self.generator_info.query = None, None, None

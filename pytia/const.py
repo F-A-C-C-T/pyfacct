@@ -1,6 +1,13 @@
+class TechnicalConsts(object):
+    library_version = "0.5.3"
+
+
 class RequestConsts(object):
     API_URL = 'https://tap.group-ib.com/api/v2/'
-    HEADERS = {"Accept": "*/*"}
+    HEADERS = {
+        "Accept": "*/*",
+        "User-Agent": f"pytia/{TechnicalConsts.library_version}"
+    }
 
     STATUS_CODE_MSGS = {
         401: "Bad Credentials",
