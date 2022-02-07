@@ -1,10 +1,8 @@
 from setuptools import setup
 
-from pytia.const import TechnicalConsts
-
 setup(
     name='pytia',
-    version=TechnicalConsts.library_version,
+    version="0.5.3",
     description='Package provides poller for Group-IB Threat Intelligence & Attribution product',
     python_requires='>=3.6.*',
     install_requires=['requests>=2.25.1'],
