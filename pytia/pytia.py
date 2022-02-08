@@ -150,8 +150,9 @@ class TIAPoller(object):
         """
         self._session.verify = verify
 
-    def set_product(self, product_name: str, product_version: str = ""):
-        self._session.headers["User-Agent"] = f"pytia/{TechnicalConsts.library_version} {product_name}/{product_version}"
+    def set_product(self, product_name: str, product_version: str = "", integration_version: str = ""):
+        self._session.headers["User-Agent"] = f"pytia/{TechnicalConsts.library_version} " \
+                                              f"{product_name}/{product_version} {integration_version}"
 
     def set_keys(self, collection_name: str, keys: Dict[str, str]):
         """
