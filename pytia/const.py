@@ -1,5 +1,5 @@
 class TechnicalConsts(object):
-    library_version = "0.5.4"
+    library_version = "0.5.5"
 
 
 class RequestConsts(object):

@@ -89,4 +89,4 @@ class ParserHelper(object):
             if ioc not in ['255.255.255.255', '0.0.0.0', '', None]:
                 unpacked.append(ioc)
 
-        return unpacked
+        return list(set(unpacked))
