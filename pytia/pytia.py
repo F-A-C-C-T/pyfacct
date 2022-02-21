@@ -515,7 +515,7 @@ class UpdateFeedGenerator(FeedGenerator):
         self.endpoint = f"{self.generator_info.collection_name}/updated"
 
     def _get_params(self):
-        return {**super()._get_params(), "seq_update": self.sequpdate}
+        return {**super()._get_params(), "seqUpdate": self.sequpdate}
 
     def _reset_params(self, portion):
         self.sequpdate = portion.sequpdate
