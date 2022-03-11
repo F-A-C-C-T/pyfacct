@@ -119,7 +119,8 @@ class TIAPoller(object):
         url = urljoin(self._api_url, endpoint)
         params = urlencode({k: v for k, v in params.items() if v})
         try:
-            response = self._session.get(url, params=params, timeout=RequestConsts.TIMEOUT)
+            response = self._session.get(url, params=params, timeout=RequestConsts.TIMEOUT,
+                                         proxies=self._session.proxies)
             self._status_code_handler(response)
             if decode:
                 return response.json()
