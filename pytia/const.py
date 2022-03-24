@@ -1,5 +1,5 @@
 class TechnicalConsts(object):
-    library_version = "0.5.6"
+    library_version = "0.5.8"
 
 
 class RequestConsts(object):
@@ -38,16 +38,19 @@ class CollectionConsts(object):
         "compromised/imei": {"date_formats": BASE_DATE_FORMATS},
         "attacks/ddos": {"date_formats": BASE_DATE_FORMATS},
         "attacks/phishing": {"date_formats": BASE_DATE_FORMATS},
+        "attacks/phishing_group": {"date_formats": BASE_DATE_FORMATS},
         "attacks/phishing_kit": {"date_formats": BASE_DATE_FORMATS},
         "attacks/deface": {"date_formats": BASE_DATE_FORMATS},
         "suspicious_ip/tor_node": {"date_formats": BASE_DATE_FORMATS},
         "suspicious_ip/open_proxy": {"date_formats": BASE_DATE_FORMATS},
         "suspicious_ip/socks_proxy": {"date_formats": BASE_DATE_FORMATS},
+        "suspicious_ip/scanner": {"date_formats": BASE_DATE_FORMATS},
         "malware/targeted_malware": {"date_formats": BASE_DATE_FORMATS},
         "malware/malware": {"date_formats": BASE_DATE_FORMATS},
         "malware/cnc": {"date_formats": BASE_DATE_FORMATS},
         "osi/public_leak": {"date_formats": BASE_DATE_FORMATS},
         "osi/git_leak": {"date_formats": BASE_DATE_FORMATS},
+        "osi/git_repository": {"date_formats": BASE_DATE_FORMATS},
         "osi/vulnerability": {"date_formats": BASE_DATE_FORMATS},
         "apt/threat_actor": {"date_formats": BASE_DATE_FORMATS},
         "apt/threat": {"date_formats": BASE_DATE_FORMATS},
