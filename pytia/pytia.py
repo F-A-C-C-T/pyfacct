@@ -29,7 +29,8 @@ class GeneratorInfo(object):
     date_from: str = None
     date_to: Optional[str] = None
     query: Optional[str] = None
-    limit: Union[str, int] = 200
+    limit: Optional[str, int] = None
+    apply_hunting_rules: Optional[int, str] = None
     keys: Optional[Dict[any, str]] = None
     iocs_keys: Optional[Dict] = None
 
@@ -233,7 +234,8 @@ class TIAPoller(object):
 
     def create_update_generator(self, collection_name: str, date_from: Optional[str] = None,
                                 date_to: Optional[str] = None, query: Optional[str] = None,
-                                sequpdate: Union[int, str] = None, limit: Union[int, str] = 200):
+                                sequpdate: Union[int, str] = None, limit: Optional[int, str] = None,
+                                apply_hunting_rules: Optional[int, str] = None):
         """
         Creates generator of :class:`Parser` class objects for an update session
         (feeds are sorted in ascending order) for `collection_name` with set parameters.
@@ -255,17 +257,19 @@ class TIAPoller(object):
         :param query: query to search during update session.
         :param sequpdate: identification number from which to start the session.
         :param limit: size of portion in iteration.
+        :param apply_hunting_rules: apply or not client hunting rules to get only filtered data (applicable for public_leak, phishing_group and breached)
         :rtype: Generator[:class:`Parser`]
         """
         session_type = "update"
         generator_info = GeneratorInfo(collection_name, session_type, date_from, date_to, query, limit,
-                                       keys=self._keys.get(collection_name),
+                                       apply_hunting_rules, keys=self._keys.get(collection_name),
                                        iocs_keys=self._iocs_keys.get(collection_name))
         generator_class = UpdateFeedGenerator(self, generator_info, sequpdate=sequpdate)
         return generator_class.create_generator()
 
     def create_search_generator(self, collection_name: str, date_from: str = None, date_to: Optional[str] = None,
-                                query: Optional[str] = None, limit: Union[str, int] = 200):
+                                query: Optional[str] = None, limit: Optional[str, int] = None,
+                                apply_hunting_rules: Optional[int, str] = None):
         """
         Creates generator of :class:`Parser` class objects for the search session 
         (feeds are sorted in descending order, **excluding compromised/breached amd compromised/reaper**)
@@ -279,11 +283,12 @@ class TIAPoller(object):
         :param date_to: end date of search session.
         :param query: query to search during session.
         :param limit: size of portion in iteration.
+        :param apply_hunting_rules: apply or not client hunting rules to get only filtered data (applicable for public_leak, phishing_group and breached)
         :rtype: Generator[:class:`Parser`]
         """
         session_type = "search"
         generator_info = GeneratorInfo(collection_name, session_type, date_from, date_to, query, limit,
-                                       keys=self._keys.get(collection_name),
+                                       apply_hunting_rules, keys=self._keys.get(collection_name),
                                        iocs_keys=self._iocs_keys.get(collection_name))
         generator_class = SearchFeedGenerator(self, generator_info)
         return generator_class.create_generator()
@@ -303,17 +308,6 @@ class TIAPoller(object):
                          self._iocs_keys.get(collection_name, []))
         return portion
 
-    def global_search(self, query: str) -> List[Dict[str, Any]]:
-        """
-        Global search across all collections with provided `query`, returns dict
-        with information about collection, count, etc.
-
-        :param query: in what collection to search.
-        """
-        endpoint = "search"
-        response = self.send_request(endpoint=endpoint, params={"q": query})
-        return response
-
     def search_file_in_threats(self, collection_name: str, feed_id: str, file_id: str) -> bytes:
         """
         Searches for file with `file_id` in collection with `collection_name` in feed with `feed_id`.
@@ -329,7 +323,37 @@ class TIAPoller(object):
         binary_file = self.send_request(endpoint=endpoint, params={}, decode=False)
         return binary_file
 
-    def get_seq_update_dict(self, date: Optional[str] = None) -> Dict[str, int]:
+    def execute_action_by_id(self, collection_name: str, feed_id: str, action: str,
+                             request_params: Optional[Dict] = None, decode: Optional[bool] = True):
+        """
+        Executes `action` for feed with `feed_id` in collection `collection_name`.
+
+        :param collection_name: in what collection to search.
+        :param feed_id: id of feed to search.
+        :param action: action to execute (part of REST resource after "action/")
+        :param request_params: dict of params to send with this request (e.g.: {"url_id": "1342312"})
+        :param decode: True to get data in json format, False to get raw content
+        """
+        Validator.validate_collection_name(collection_name)
+        if action[0] == "/":
+            action = action[1::]
+        endpoint = f"{collection_name}/{feed_id}/action/{action}"
+        response = self.send_request(endpoint=endpoint, params=request_params, decode=decode)
+        return response
+
+    def global_search(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Global search across all collections with provided `query`, returns dict
+        with information about collection, count, etc.
+
+        :param query: query to search for.
+        """
+        endpoint = "search"
+        response = self.send_request(endpoint=endpoint, params={"q": query})
+        return response
+
+    def get_seq_update_dict(self, date: Optional[str] = None,
+                            apply_hunting_rules: Optional[int, str] = None) -> Dict[str, int]:
         """
         Gets dict with `seqUpdate` for all collections from server for provided date.
         If date is not provide returns dict for today.
@@ -337,13 +361,14 @@ class TIAPoller(object):
         .. warning:: Date should be in "YYYY-MM-DD" format.
 
         :param date: defines for what date to get seqUpdate.
+        :param apply_hunting_rules: apply or not client hunting rules to get only filtered data (applicable for public_leak, phishing_group and breached)
         :return: dict with collection names in keys and seq updates in values.
         """
         if date:
             Validator.validate_date_format(date=date, formats=["%Y-%m-%d"])
 
         endpoint = "sequence_list"
-        params = {"date": date}
+        params = {"date": date, "apply_hunting_rules": apply_hunting_rules}
         buffer_dict = self.send_request(endpoint=endpoint, params=params).get("list")
         seq_update_dict = {}
         for key in CollectionConsts.COLLECTIONS_INFO.keys():
@@ -485,7 +510,8 @@ class FeedGenerator(object):
 
     def _get_params(self):
         return {'df': self.generator_info.date_from, 'dt': self.generator_info.date_to,
-                'q': self.generator_info.query, 'limit': self.generator_info.limit}
+                'q': self.generator_info.query, 'limit': self.generator_info.limit,
+                "apply_hunting_rules": self.generator_info.apply_hunting_rules}
 
     def _reset_params(self, portion):
         pass
