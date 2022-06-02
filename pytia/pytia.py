@@ -29,8 +29,8 @@ class GeneratorInfo(object):
     date_from: str = None
     date_to: Optional[str] = None
     query: Optional[str] = None
-    limit: Optional[str, int] = None
-    apply_hunting_rules: Optional[int, str] = None
+    limit: Union[str, int] = None
+    apply_hunting_rules: Union[int, str] = None
     keys: Optional[Dict[any, str]] = None
     iocs_keys: Optional[Dict] = None
 
@@ -50,7 +50,8 @@ class GeneratorInfo(object):
                 formats=CollectionConsts.COLLECTIONS_INFO.get(self.collection_name).get("date_formats")
             )
         # todo: прикрутить нормальную проверку
-        int(self.limit)
+        if self.limit:
+            int(self.limit)
 
     def __post_init__(self) -> None:
         """
@@ -68,7 +69,7 @@ class TIAPoller(object):
     :param str api_key: API key, generated in GIB TI&A.
     :param str api_url: (optional) URL for GIB TI&A.
     """
-    def __init__(self, username: str, api_key: str, api_url: str = RequestConsts.API_URL):
+    def __init__(self, username: str, api_key: str, api_url: Optional[str] = RequestConsts.API_URL):
         """
         :param username: Login for GIB TI&A.
         :param api_key: API key, generated in GIB TI&A.
@@ -234,8 +235,8 @@ class TIAPoller(object):
 
     def create_update_generator(self, collection_name: str, date_from: Optional[str] = None,
                                 date_to: Optional[str] = None, query: Optional[str] = None,
-                                sequpdate: Union[int, str] = None, limit: Optional[int, str] = None,
-                                apply_hunting_rules: Optional[int, str] = None):
+                                sequpdate: Union[int, str] = None, limit: Union[int, str] = None,
+                                apply_hunting_rules: Union[int, str] = None):
         """
         Creates generator of :class:`Parser` class objects for an update session
         (feeds are sorted in ascending order) for `collection_name` with set parameters.
@@ -268,8 +269,8 @@ class TIAPoller(object):
         return generator_class.create_generator()
 
     def create_search_generator(self, collection_name: str, date_from: str = None, date_to: Optional[str] = None,
-                                query: Optional[str] = None, limit: Optional[str, int] = None,
-                                apply_hunting_rules: Optional[int, str] = None):
+                                query: Optional[str] = None, limit: Union[str, int] = None,
+                                apply_hunting_rules: Union[int, str] = None):
         """
         Creates generator of :class:`Parser` class objects for the search session 
         (feeds are sorted in descending order, **excluding compromised/breached amd compromised/reaper**)
@@ -353,7 +354,7 @@ class TIAPoller(object):
         return response
 
     def get_seq_update_dict(self, date: Optional[str] = None,
-                            apply_hunting_rules: Optional[int, str] = None) -> Dict[str, int]:
+                            apply_hunting_rules: Union[int, str] = None) -> Dict[str, int]:
         """
         Gets dict with `seqUpdate` for all collections from server for provided date.
         If date is not provide returns dict for today.
