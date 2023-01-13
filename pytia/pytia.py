@@ -353,6 +353,28 @@ class TIAPoller(object):
         response = self.send_request(endpoint=endpoint, params={"q": query})
         return response
 
+    def graph_ip_search(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Graph IP search returns WHOIS information from Graph API
+
+        :param query: query to search for.
+        """
+
+        endpoint = "utils/graph/ip"
+        response = self.send_request(endpoint=endpoint, params={"ip": query})
+        return response
+
+    def graph_domain_search(self, query: str) ->List[Dict[str, Any]]:
+        """
+        Graph domain search returns WHOIS information from Graph API
+
+        :param query: query to search for.
+        """
+
+        endpoint = "utils/graph/domain"
+        response = self.send_request(endpoint=endpoint, params={"domain": query})
+        return response
+
     def get_seq_update_dict(self, date: Optional[str] = None,
                             apply_hunting_rules: Union[int, str] = None) -> Dict[str, int]:
         """
