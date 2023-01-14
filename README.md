@@ -133,7 +133,7 @@
 		    continue
 		for portion in generator:
 		    parsed_portion = portion.parse_portion()
-	            save_portion(parsed_portion)
+	        	save_portion(parsed_portion)
 		    update_generator_config[collection]["sequpdate"] = portion.sequpdate
 			
 	except InputException as e:
@@ -144,4 +144,221 @@
 	    logging.exception("Exception occured during parsing: {0}".format(e))
 	finally:
 	    poller.close_session()
+	```
+ 	In this case save_portion is example where you put your function to save data from TI.
+	
+	update_generator_config[collection]["sequpdate"] it is file were you should save seqUpdate for /updated API.
+
+
+
+10. Utils
+
+	1. Using Graph API for WHOIS information
+	
+    There are two types of searching:
+
+	Domain:
+	```python
+	from pytia import TIAPoller
+	poller = TIAPoller('some@gmail.com', 'API_KEY')
+	poller.set_verify(True)
+	print(poller.graph_domain_search('example.com'))
+	```
+ 	Example of the response:
+	```python
+	{
+    "createdAt": "2015-12-10T20:40:01+00:00",
+    "id": "google.com",
+    "isSld": true,
+    "name": "google.com",
+    "sld": null,
+    "updatedAt": "2023-01-12T07:30:03+00:00",
+    "whois": [
+        {
+            "checked_at": "2023-01-12 07:51:03",
+            "level": 1,
+            "parsed": [
+                {
+                    "field": "DomainName",
+                    "value": [
+                        "google.com"
+                    ]
+                },
+                {
+                    "field": "Status",
+                    "value": [
+                        "clientdeleteprohibited https://icann.org/epp#clientdeleteprohibited",
+                        "clienttransferprohibited https://icann.org/epp#clienttransferprohibited",
+                        "clientupdateprohibited https://icann.org/epp#clientupdateprohibited",
+                        "serverdeleteprohibited https://icann.org/epp#serverdeleteprohibited",
+                        "servertransferprohibited https://icann.org/epp#servertransferprohibited",
+                        "serverupdateprohibited https://icann.org/epp#serverupdateprohibited"
+                    ]
+                },
+                {
+                    "field": "Registrar",
+                    "value": [
+                        "markmonitor inc"
+                    ]
+                },
+                {
+                    "field": "CreationDate",
+                    "value": [
+                        "1997-09-15 04:00:00"
+                    ]
+                },
+                {
+                    "field": "ExpirationDate",
+                    "value": [
+                        "2028-09-14 04:00:00"
+                    ]
+                },
+                {
+                    "field": "UpdatedDate",
+                    "value": [
+                        "2019-09-09 15:39:04"
+                    ]
+                },
+                {
+                    "field": "Phone",
+                    "value": [
+                        "12086851750"
+                    ]
+                },
+                {
+                    "field": "NameServers",
+                    "value": [
+                        "ns1.google.com",
+                        "ns2.google.com",
+                        "ns3.google.com",
+                        "ns4.google.com"
+                    ]
+                },
+                {
+                    "field": "WhoisServer",
+                    "value": [
+                        "whois.markmonitor.com"
+                    ]
+                }
+            ],
+            "response": "Domain Name: GOOGLE.COM\r\n   Registry Domain ID: 2138514_DOMAIN_COM-VRSN\r\n   Registrar WHOIS Server: whois.markmonitor.com\r\n   Registrar URL: http://www.markmonitor.com\r\n   Updated Date: 2019-09-09T15:39:04Z\r\n   Creation Date: 1997-09-15T04:00:00Z\r\n   Registry Expiry Date: 2028-09-14T04:00:00Z\r\n   Registrar: MarkMonitor Inc.\r\n   Registrar IANA ID: 292\r\n   Registrar Abuse Contact Email: abusecomplaints@markmonitor.com\r\n   Registrar Abuse Contact Phone: +1.2086851750\r\n   Domain Status: clientDeleteProhibited https://icann.org/epp#clientDeleteProhibited\r\n   Domain Status: clientTransferProhibited https://icann.org/epp#clientTransferProhibited\r\n   Domain Status: clientUpdateProhibited https://icann.org/epp#clientUpdateProhibited\r\n   Domain Status: serverDeleteProhibited https://icann.org/epp#serverDeleteProhibited\r\n   Domain Status: serverTransferProhibited https://icann.org/epp#serverTransferProhibited\r\n   Domain Status: serverUpdateProhibited https://icann.org/epp#serverUpdateProhibited\r\n   Name Server: NS1.GOOGLE.COM\r\n   Name Server: NS2.GOOGLE.COM\r\n   Name Server: NS3.GOOGLE.COM\r\n   Name Server: NS4.GOOGLE.COM\r\n   DNSSEC: unsigned\r\n   URL of the ICANN Whois Inaccuracy Complaint Form: https://www.icann.org/wicf/",
+            "server": "whois.crsnic.net"
+        }]
+	}
+	```
+
+	IP's:
+	```python
+	from pytia import TIAPoller
+	poller = TIAPoller('some@gmail.com', 'API_KEY')
+	poller.set_verify(True)
+	print(poller.graph_ip_search('8.8.8.8'))
+	```
+ 
+ 	Example of the response:
+	```python
+	{
+    "createdAt": null,
+    "created_at": null,
+    "end": "8.8.8.255",
+    "id": "8.8.8.0_8.8.8.255",
+    "provider": "arin",
+    "start": "8.8.8.0",
+    "updatedAt": null,
+    "updated_at": null,
+    "whoisSummary": {
+        "asn": "AS15169",
+        "country": "US",
+        "descr": "Google",
+        "isp": "Google",
+        "netname": "LVLT-GOGL-8-8-8",
+        "person": null,
+        "phone": "+1-650-253-0000"
+ 	    }
+	}
+ 	```
+	2. Global search
+    
+	Global search across all collections with provided `query`, returns dict with information about collection, count, etc.
+	```python
+	from pytia import TIAPoller
+	poller = TIAPoller('some@gmail.com', 'API_KEY')
+	poller.set_verify(True)
+	print(poller.global_search('8.8.8.8'))
+    ```
+ 	Example of the response:
+	```python
+	[
+    {
+        "apiPath": "compromised/account",
+        "count": 3391,
+        "detailedLinks": [],
+        "label": "Compromise & leaks :: Accounts",
+        "link": null,
+        "time": 0.0
+    },
+    {
+        "apiPath": "attacks/deface",
+        "count": 2,
+        "detailedLinks": [],
+        "label": "Attack :: Deface",
+        "link": "https://tap.group-ib.com/attacks/deface?searchValue=8.8.8.8&q=8.8.8.8",
+        "time": 0.0
+    },
+    {
+        "apiPath": "attacks/phishing",
+        "count": 1781,
+        "detailedLinks": [],
+        "label": "Attack :: Phishing",
+        "link": "https://tap.group-ib.com/attacks/phishing?searchValue=8.8.8.8&q=8.8.8.8",
+        "time": 0.0
+    },
+    {
+        "apiPath": "hi/threat",
+        "count": 1,
+        "detailedLinks": [],
+        "label": "Threats & Actors :: Cybercriminals :: Report",
+        "link": "https://tap.group-ib.com/ta/last-threats?type=hi?searchValue=8.8.8.8&q=8.8.8.8",
+        "time": 0.0
+    },
+    {
+        "apiPath": "apt/threat",
+        "count": 12,
+        "detailedLinks": [],
+        "label": "Threats & Actors :: Nation-State :: Report",
+        "link": "https://tap.group-ib.com/ta/last-threats?type=apt?searchValue=8.8.8.8&q=8.8.8.8",
+        "time": 0.0
+    },
+    {
+        "apiPath": "apt/threat_actor",
+        "count": 4,
+        "detailedLinks": [],
+        "label": "Threats & Actors :: Nation-State",
+        "link": "https://tap.group-ib.com/common/threat_actor?searchValue=8.8.8.8&q=8.8.8.8",
+        "time": 0.0
+    },
+    {
+        "apiPath": "osi/vulnerability",
+        "count": 10,
+        "detailedLinks": [],
+        "label": "Malware :: Vulnerabilities",
+        "link": "https://tap.group-ib.com/osi/vulnerabilities?searchValue=8.8.8.8&q=8.8.8.8",
+        "time": 0.0
+    },
+    {
+        "apiPath": "osi/public_leak",
+        "count": 9227,
+        "detailedLinks": [],
+        "label": "Compromise & leaks :: Public Leaks",
+        "link": "https://tap.group-ib.com/osi/public_leak?searchValue=8.8.8.8&q=8.8.8.8",
+        "time": 0.0
+    },
+    {
+        "apiPath": "malware/polygon_task",
+        "count": 3167,
+        "detailedLinks": [],
+        "label": "Malware :: Malware Detonation",
+        "link": null,
+        "time": 0.0
+    }]	
 	```
