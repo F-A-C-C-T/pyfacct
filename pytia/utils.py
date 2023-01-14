@@ -90,3 +90,28 @@ class ParserHelper(object):
                 unpacked.append(ioc)
 
         return list(set(unpacked))
+
+    @classmethod
+    def set_element_by_key(cls, obj, path, value):
+        """
+        Recursively goes through dicts (and only dicts) and set the key in the end to desired value
+        """
+        keys = path.split(".", 1)
+        if len(keys) == 1:
+            obj[keys[0]] = value
+            return obj
+        else:
+            obj[keys[0]] = cls.set_element_by_key(obj.get(keys[0]), keys[1], value)
+            return obj
+
+
+class Graph_domain_search(object):
+    @classmethod
+    def reform_response(cls, obj):
+        whois_list = ParserHelper.find_element_by_key(obj, 'whois')
+        for item in whois_list:
+            key_list = ParserHelper.find_element_by_key(item, 'parsed.field')
+            value_list = ParserHelper.find_element_by_key(item, 'parsed.value')
+            item['parsed'] = dict(zip(key_list, value_list))
+        ParserHelper.set_element_by_key(obj, 'whois', whois_list)
+        return obj
