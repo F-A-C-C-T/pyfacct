@@ -131,7 +131,7 @@
 		    continue
 		for portion in generator:
 		    parsed_portion = portion.parse_portion()
-	             save_portion(parsed_portion)
+	            save_portion(parsed_portion)
 		    update_generator_config[collection]["sequpdate"] = portion.sequpdate
 			
 	except InputException as e:
