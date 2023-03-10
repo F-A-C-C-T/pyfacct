@@ -1,5 +1,5 @@
 class TechnicalConsts(object):
-    library_version = "0.5.10"
+    library_version = "0.5.2"
 
 
 class RequestConsts(object):
@@ -31,11 +31,17 @@ class CollectionConsts(object):
 
     COLLECTIONS_INFO = {
         "compromised/account": {"date_formats": BASE_DATE_FORMATS},
+        "compromised/account_group": {"date_formats": BASE_DATE_FORMATS},
         "compromised/card": {"date_formats": BASE_DATE_FORMATS},
+        "compromised/bank_card": {"date_formats": BASE_DATE_FORMATS},
+        "compromised/bank_card_group": {"date_formats": BASE_DATE_FORMATS},
+        "compromised/masked_card": {"date_formats": BASE_DATE_FORMATS},
         "compromised/breached": {"date_formats": BASE_DATE_FORMATS},
         "compromised/reaper": {"date_formats": BASE_DATE_FORMATS},
         "compromised/mule": {"date_formats": BASE_DATE_FORMATS},
         "compromised/imei": {"date_formats": BASE_DATE_FORMATS},
+        "compromised/access": {"date_formats": BASE_DATE_FORMATS},
+        "compromised/messenger": {"date_formats": BASE_DATE_FORMATS},
         "attacks/ddos": {"date_formats": BASE_DATE_FORMATS},
         "attacks/phishing": {"date_formats": BASE_DATE_FORMATS},
         "attacks/phishing_group": {"date_formats": BASE_DATE_FORMATS},
@@ -45,9 +51,13 @@ class CollectionConsts(object):
         "suspicious_ip/open_proxy": {"date_formats": BASE_DATE_FORMATS},
         "suspicious_ip/socks_proxy": {"date_formats": BASE_DATE_FORMATS},
         "suspicious_ip/scanner": {"date_formats": BASE_DATE_FORMATS},
+        "suspicious_ip/vpn": {"date_formats": BASE_DATE_FORMATS},
         "malware/targeted_malware": {"date_formats": BASE_DATE_FORMATS},
         "malware/malware": {"date_formats": BASE_DATE_FORMATS},
         "malware/cnc": {"date_formats": BASE_DATE_FORMATS},
+        "malware/config": {"date_formats": BASE_DATE_FORMATS},
+        "malware/signature": {"date_formats": BASE_DATE_FORMATS},
+        "malware/yara": {"date_formats": BASE_DATE_FORMATS},
         "osi/public_leak": {"date_formats": BASE_DATE_FORMATS},
         "osi/git_leak": {"date_formats": BASE_DATE_FORMATS},
         "osi/git_repository": {"date_formats": BASE_DATE_FORMATS},
@@ -58,8 +68,6 @@ class CollectionConsts(object):
         "bp/phishing_kit": {"date_formats": BASE_DATE_FORMATS},
         "hi/threat": {"date_formats": BASE_DATE_FORMATS},
         "hi/threat_actor": {"date_formats": BASE_DATE_FORMATS},
-        "common/threat": {"date_formats": BASE_DATE_FORMATS},
-        "common/threat_actor": {"date_formats": BASE_DATE_FORMATS},
         "ioc/common": {"date_formats": BASE_DATE_FORMATS},
         "utils/graph/domain": {"date_formats": BASE_DATE_FORMATS},
         "utils/graph/ip": {"date_formats": BASE_DATE_FORMATS}
