@@ -1,6 +1,6 @@
 """
 
-This module contains poller for GIB TI&A.
+This module contains poller for GIB TI.
 
 """
 
@@ -63,17 +63,17 @@ class GeneratorInfo(object):
 
 class TIAPoller(object):
     """
-    Poller that can be used for requests to GIB TI&A.
+    Poller that can be used for requests to GIB TI.
 
-    :param str username: Login for GIB TI&A.
-    :param str api_key: API key, generated in GIB TI&A.
-    :param str api_url: (optional) URL for GIB TI&A.
+    :param str username: Login for GIB TI.
+    :param str api_key: API key, generated in GIB TI.
+    :param str api_url: (optional) URL for GIB TI.
     """
     def __init__(self, username: str, api_key: str, api_url: Optional[str] = RequestConsts.API_URL):
         """
-        :param username: Login for GIB TI&A.
-        :param api_key: API key, generated in GIB TI&A.
-        :param api_url: (optional) URL for GIB TI&A.
+        :param username: Login for GIB TI.
+        :param api_key: API key, generated in GIB TI.
+        :param api_url: (optional) URL for GIB TI.
         """
         self._session = requests.Session()
         self._session.auth = HTTPBasicAuth(username, api_key)

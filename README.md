@@ -107,7 +107,7 @@
 	compromised_account_sequpdate = seq_update_dict.get('compromised/account')
 	```
 
-8. Additional information about API you can find in the TI&A web interface or in TI&A Integration Guide.
+8. Additional information about API you can find in the TI web interface or in TI Integration Guide.
 
 9. Full version of program:
 	```python
