@@ -69,6 +69,8 @@ class CollectionConsts(object):
         "hi/threat": {"date_formats": BASE_DATE_FORMATS},
         "hi/threat_actor": {"date_formats": BASE_DATE_FORMATS},
         "ioc/common": {"date_formats": BASE_DATE_FORMATS},
+        "utils/graph/domain": {"date_formats": BASE_DATE_FORMATS},
+        "utils/graph/ip": {"date_formats": BASE_DATE_FORMATS}
     }
 
     ONLY_SEARCH_COLLECTIONS = ["compromised/breached", "compromised/reaper"]
