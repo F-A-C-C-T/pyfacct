@@ -1,6 +1,6 @@
 """
 
-This module contains poller for GIB TI&A.
+This module contains poller for GIB TI.
 
 """
 
@@ -63,17 +63,17 @@ class GeneratorInfo(object):
 
 class TIAPoller(object):
     """
-    Poller that can be used for requests to GIB TI&A.
+    Poller that can be used for requests to GIB TI.
 
-    :param str username: Login for GIB TI&A.
-    :param str api_key: API key, generated in GIB TI&A.
-    :param str api_url: (optional) URL for GIB TI&A.
+    :param str username: Login for GIB TI.
+    :param str api_key: API key, generated in GIB TI.
+    :param str api_url: (optional) URL for GIB TI.
     """
     def __init__(self, username: str, api_key: str, api_url: Optional[str] = RequestConsts.API_URL):
         """
-        :param username: Login for GIB TI&A.
-        :param api_key: API key, generated in GIB TI&A.
-        :param api_url: (optional) URL for GIB TI&A.
+        :param username: Login for GIB TI.
+        :param api_key: API key, generated in GIB TI.
+        :param api_url: (optional) URL for GIB TI.
         """
         self._session = requests.Session()
         self._session.auth = HTTPBasicAuth(username, api_key)
@@ -351,6 +351,28 @@ class TIAPoller(object):
         """
         endpoint = "search"
         response = self.send_request(endpoint=endpoint, params={"q": query})
+        return response
+
+    def graph_ip_search(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Graph IP search returns WHOIS information from Graph API
+
+        :param query: query to search for.
+        """
+
+        endpoint = "utils/graph/ip"
+        response = self.send_request(endpoint=endpoint, params={"ip": query})
+        return response
+
+    def graph_domain_search(self, query: str) ->List[Dict[str, Any]]:
+        """
+        Graph domain search returns WHOIS information from Graph API
+
+        :param query: query to search for.
+        """
+
+        endpoint = "utils/graph/domain"
+        response = self.send_request(endpoint=endpoint, params={"domain": query})
         return response
 
     def get_seq_update_dict(self, date: Optional[str] = None,
