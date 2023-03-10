@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='pytia',
-    version="0.5.2",
+    version="0.5.20",
     description='Package provides poller for Group-IB Threat Intelligence product',
     python_requires='>=3.6.*',
     install_requires=['requests>=2.25.1', 'dataclasses'],
