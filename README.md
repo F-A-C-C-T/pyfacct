@@ -2,13 +2,13 @@
 ﻿
 ## **How to use**
 1. First of all you need to initialize Poller with your credentials and set proxy (if you use it), whitelisted by GROUP-IB. Proxy must be in request-like format. Also, you can change the verification of the HTTPS certificate (False by default).
-	```python
-	from pytia import TIAPoller
+   ```python
+   from gibunipy import TIAPoller
 
-	poller = TIAPoller('some@gmail.com', 'API_KEY')
-	poller.set_proxies({"https": 'proxy_protocol' + "://" + 'proxy_user' + ":" + 'proxy_password' + "@" +  'proxy_ip' + ":" + 'proxy_port'})
-	poller.set_verify(True)
-	```
+   poller = TIAPoller('some@gmail.com', 'API_KEY')
+   poller.set_proxies({"https": 'proxy_protocol' + "://" + 'proxy_user' + ":" + 'proxy_password' + "@" +  'proxy_ip' + ":" + 'proxy_port'})
+   poller.set_verify(True)
+   ```
 	
 2. Then you can set what data you need. Set key with the python dict in the following format: {**key_name_you_want_in_result_dict**: **data_you_want_to_find**}. Parser finds keys recursively in lists/dicts so set **data_you_want_to_find** using dot notation: **firstkey.secondkey**. If you want to add your own data to the results start your data_you_want_to_find with *. For set_keys you also can make a full template to nest data in the way you want.
 	```python
@@ -82,23 +82,23 @@
 	binary_file = poller.search_file_in_threats(collection_name='hi/threat', feed_id='some_id', file_id='some_file_id_inside_feed')
 	```
 
-6. Don’t forget to close session in **try…except…finally** block, or use poller with context manager. 
-	```python
-	from pytia import TIAPoller
-	from pytia.exception import InputException
-	
-	...
-	
-	try:
-	    poller = TIAPoller('some@gmail.com', 'API_KEY')
-	    ...
-	except InputException as e:
-	    log.info("Wrong input: {0}".format(e))
-	finally:
-	    poller.close_session()
-	with TIAPoller('some@gmail.com', 'API_KEY') as poller:
-	    pass
-	```
+6. Don’t forget to close session in **try…except…finally** block, or use poller with context manager.
+   ```python
+   from gibunipy import TIAPoller
+   from gibunipy.exception import InputException
+   
+   ...
+   
+   try:
+       poller = TIAPoller('some@gmail.com', 'API_KEY')
+       ...
+   except InputException as e:
+       log.info("Wrong input: {0}".format(e))
+   finally:
+       poller.close_session()
+   with TIAPoller('some@gmail.com', 'API_KEY') as poller:
+       pass
+   ```
 
 7. Also you can use some additional functions if you need. You should use get_available_collections because in API response you can get collections that you have no access to.
 	```python
@@ -110,41 +110,41 @@
 8. Additional information about API you can find in the TI web interface or in TI Integration Guide.
 
 9. Full version of program:
-	```python
-	import logging
-	from pytia import TIAPoller
-	from pytia.exception import InputException, ConnectionException, ParserException
-	
-	logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-	...
-	
-	try:
-	    poller = TIAPoller(username=username, api_key=api_key)
-	    poller.set_proxies({"https": proxy_protocol + "://" + proxy_user + ":" + proxy_password + "@" +  proxy_ip + ":" + proxy_port})
-	    poller.set_verify(True)
-	    for collection, keys in keys_config.items():
-	    poller.set_keys(collection, keys)	
-	    for collection, state in update_generator_config.items():
-	        if state.get("sequpdate"):
-		    generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
-		elif state.get("date_from"):
-		    generator = poller.create_update_generator(collection_name=collection, date_from=state.get("date_from"))
-		else:
-		    continue
-		for portion in generator:
-		    parsed_portion = portion.parse_portion()
-	        	save_portion(parsed_portion)
-		    update_generator_config[collection]["sequpdate"] = portion.sequpdate
-			
-	except InputException as e:
-	    logging.exception("Wrong input: {0}".format(e))
-	except ConnectionException as e:
-	    logging.exception("Something wrong with connection: {0}".format(e))
-	except ParserException as e:
-	    logging.exception("Exception occured during parsing: {0}".format(e))
-	finally:
-	    poller.close_session()
-	```
+   ```python
+   import logging
+   from gibunipy import TIAPoller
+   from gibunipy.exception import InputException, ConnectionException, ParserException
+   
+   logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+   ...
+   
+   try:
+       poller = TIAPoller(username=username, api_key=api_key)
+       poller.set_proxies({"https": proxy_protocol + "://" + proxy_user + ":" + proxy_password + "@" +  proxy_ip + ":" + proxy_port})
+       poller.set_verify(True)
+       for collection, keys in keys_config.items():
+       poller.set_keys(collection, keys)	
+       for collection, state in update_generator_config.items():
+           if state.get("sequpdate"):
+           generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
+       elif state.get("date_from"):
+           generator = poller.create_update_generator(collection_name=collection, date_from=state.get("date_from"))
+       else:
+           continue
+       for portion in generator:
+           parsed_portion = portion.parse_portion()
+               save_portion(parsed_portion)
+           update_generator_config[collection]["sequpdate"] = portion.sequpdate
+           
+   except InputException as e:
+       logging.exception("Wrong input: {0}".format(e))
+   except ConnectionException as e:
+       logging.exception("Something wrong with connection: {0}".format(e))
+   except ParserException as e:
+       logging.exception("Exception occured during parsing: {0}".format(e))
+   finally:
+       poller.close_session()
+   ```
  	In this case save_portion is example where you put your function to save data from TI.
 	
 	update_generator_config[collection]["sequpdate"] it is file were you should save seqUpdate for /updated API.
@@ -154,12 +154,12 @@
 10. Utils
 
 	1. Using Graph API for WHOIS information
-	
-    There are two types of searching:
+
+	There are two types of searching:
 
 	Domain:
 	```python
-	from pytia import TIAPoller
+	from gibunipy import TIAPoller
 	poller = TIAPoller('some@gmail.com', 'API_KEY')
 	poller.set_verify(True)
 	print(poller.graph_domain_search('example.com'))
@@ -249,7 +249,7 @@
 
 	IP's:
 	```python
-	from pytia import TIAPoller
+	from gibunipy import TIAPoller
 	poller = TIAPoller('some@gmail.com', 'API_KEY')
 	poller.set_verify(True)
 	print(poller.graph_ip_search('8.8.8.8'))
@@ -278,10 +278,10 @@
 	}
  	```
 	2. Global search
-    
+
 	Global search across all collections with provided `query`, returns dict with information about collection, count, etc.
 	```python
-	from pytia import TIAPoller
+	from gibunipy import TIAPoller
 	poller = TIAPoller('some@gmail.com', 'API_KEY')
 	poller.set_verify(True)
 	print(poller.global_search('8.8.8.8'))

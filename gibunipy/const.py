@@ -1,12 +1,12 @@
 class TechnicalConsts(object):
-    library_version = "0.5.20"
+    library_version = "0.5.21"
 
 
 class RequestConsts(object):
     API_URL = 'https://tap.group-ib.com/api/v2/'
     HEADERS = {
         "Accept": "*/*",
-        "User-Agent": f"pytia/{TechnicalConsts.library_version}"
+        "User-Agent": f"gibunipy/{TechnicalConsts.library_version}"
     }
 
     STATUS_CODE_MSGS = {
