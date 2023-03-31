@@ -1,5 +1,3 @@
-
-﻿
 ## **How to use**
 1. First of all you need to initialize Poller with your credentials and set proxy (if you use it), whitelisted by GROUP-IB. Proxy must be in request-like format. Also, you can change the verification of the HTTPS certificate (False by default).
    ```python
