@@ -1,6 +1,13 @@
 class TechnicalConsts(object):
-    library_version = "0.5.21"
+    default = 'unknown'
 
+    library_name = "gibunipy"
+    library_version = "0.5.21"
+    system_type = "Lib"
+    system_name = default
+    system_version = default
+    product_name = "gibunipy_lib"
+    product_version = "0.5.21"
 
 class RequestConsts(object):
     API_URL = 'https://tap.group-ib.com/api/v2/'
@@ -20,15 +27,16 @@ class RequestConsts(object):
              "decrease number of requests per seconds to this collections."
     }
 
-    STATUS_CODE_FORCELIST = [429, 500]
-    RETRIES = 4
+    STATUS_CODE_FORCELIST = [429, 500, 502, 503, 504]
+    RETRIES = 6
     BACKOFF_FACTOR = 1
-    TIMEOUT = 60
+    TIMEOUT = 120
 
 
 class CollectionConsts(object):
     BASE_DATE_FORMATS = ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%SZ"]
 
+    ### ALL collectoin which exist should be provied with collection list
     COLLECTIONS_INFO = {
         "compromised/account": {"date_formats": BASE_DATE_FORMATS},
         "compromised/account_group": {"date_formats": BASE_DATE_FORMATS},
