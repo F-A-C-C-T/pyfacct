@@ -13,7 +13,7 @@ from typing import Union, Optional, List, Dict, Any, Generator
 import requests
 from requests.auth import HTTPBasicAuth
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+from urllib3.util.retry import Retry
 
 from .exception import ConnectionException, ParserException
 from .const import *
@@ -83,7 +83,7 @@ class TIAPoller(object):
         self._keys = {}
         self._iocs_keys = {}
         self._mount_adapter_with_retries()
-
+        self.set_product(username=username)
     def __enter__(self):
         return self
 
@@ -153,9 +153,24 @@ class TIAPoller(object):
         """
         self._session.verify = verify
 
-    def set_product(self, product_name: str, product_version: str = "", integration_version: str = ""):
-        self._session.headers["User-Agent"] = f"pytia/{TechnicalConsts.library_version} " \
-                                              f"{product_name}/{product_version} {integration_version}"
+    def set_product(self,
+                    system_type: str = f"{TechnicalConsts.system_type}",
+                    system_name: str = f'{TechnicalConsts.system_name}',
+                    system_version: str = f'{TechnicalConsts.system_version}',
+                    product_name: str = f'{TechnicalConsts.product_name}',
+                    product_version: str = f'{TechnicalConsts.product_version}',
+                    username: str = '',
+                    library_name: str = f'{TechnicalConsts.library_name}',
+                    library_version: str = f'{TechnicalConsts.library_version}'):
+
+        def _refactor_under_slash(name, version):
+            return name if name == 'unknown' else f'{name}_{version}'
+
+        self._session.headers["User-Agent"] = f"{system_type}/" \
+                                              f"{_refactor_under_slash(system_name,system_version)}/" \
+                                              f"{_refactor_under_slash(product_name,product_version)}/" \
+                                              f"{username}/" \
+                                              f"{library_name}_{library_version}"
 
     def set_keys(self, collection_name: str, keys: Dict[str, str]):
         """
