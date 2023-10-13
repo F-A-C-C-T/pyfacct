@@ -1,1 +1,1 @@
-from .pytia import TIAPoller
+from .cyberintegration import TIAPoller

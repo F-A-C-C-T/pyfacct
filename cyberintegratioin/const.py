@@ -1,19 +1,19 @@
 class TechnicalConsts(object):
     default = 'unknown'
 
-    library_name = "gibunipy"
+    library_name = "cyberintegratioin"
     library_version = "0.5.21"
     system_type = "Lib"
     system_name = default
     system_version = default
-    product_name = "gibunipy_lib"
+    product_name = "cyberintegratioin_lib"
     product_version = "0.5.21"
 
 class RequestConsts(object):
     API_URL = 'https://tap.group-ib.com/api/v2/'
     HEADERS = {
         "Accept": "*/*",
-        "User-Agent": f"gibunipy/{TechnicalConsts.library_version}"
+        "User-Agent": f"cyberintegratioin/{TechnicalConsts.library_version}"
     }
 
     STATUS_CODE_MSGS = {
