@@ -1,7 +1,7 @@
 ## **How to use**
 1. First of all you need to initialize Poller with your credentials and set proxy (if you use it), whitelisted by GROUP-IB. Proxy must be in request-like format. Also, you can change the verification of the HTTPS certificate (False by default).
    ```python
-   from cyberintegratioin import TIAPoller
+   from cyberintegratioins import TIAPoller
 
    poller = TIAPoller('some@gmail.com', 'API_KEY')
    poller.set_proxies({"https": 'proxy_protocol' + "://" + 'proxy_user' + ":" + 'proxy_password' + "@" +  'proxy_ip' + ":" + 'proxy_port'})
@@ -82,8 +82,8 @@
 
 6. Don’t forget to close session in **try…except…finally** block, or use poller with context manager.
    ```python
-   from cyberintegratioin import TIAPoller
-   from cyberintegratioin.exception import InputException
+   from cyberintegratioins import TIAPoller
+   from cyberintegratioins.exception import InputException
    
    ...
    
@@ -110,8 +110,8 @@
 9. Full version of program:
    ```python
    import logging
-   from cyberintegratioin import TIAPoller
-   from cyberintegratioin.exception import InputException, ConnectionException, ParserException
+   from cyberintegratioins import TIAPoller
+   from cyberintegratioins.exception import InputException, ConnectionException, ParserException
    
    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
    ...
@@ -157,7 +157,7 @@
 
 	Domain:
 	```python
-	from cyberintegratioin import TIAPoller
+	from cyberintegratioins import TIAPoller
 	poller = TIAPoller('some@gmail.com', 'API_KEY')
 	poller.set_verify(True)
 	print(poller.graph_domain_search('example.com'))
@@ -247,7 +247,7 @@
 
 	IP's:
 	```python
-	from cyberintegratioin import TIAPoller
+	from cyberintegratioins import TIAPoller
 	poller = TIAPoller('some@gmail.com', 'API_KEY')
 	poller.set_verify(True)
 	print(poller.graph_ip_search('8.8.8.8'))
@@ -279,7 +279,7 @@
 
 	Global search across all collections with provided `query`, returns dict with information about collection, count, etc.
 	```python
-	from cyberintegratioin import TIAPoller
+	from cyberintegratioins import TIAPoller
 	poller = TIAPoller('some@gmail.com', 'API_KEY')
 	poller.set_verify(True)
 	print(poller.global_search('8.8.8.8'))

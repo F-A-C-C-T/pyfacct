@@ -1,7 +1,7 @@
 class TechnicalConsts(object):
     default = 'unknown'
 
-    library_name = "cyberintegratioin"
+    library_name = "cyberintegratioins"
     library_version = "0.5.21"
     system_type = "Lib"
     system_name = default
@@ -13,7 +13,7 @@ class RequestConsts(object):
     API_URL = 'https://tap.group-ib.com/api/v2/'
     HEADERS = {
         "Accept": "*/*",
-        "User-Agent": f"cyberintegratioin/{TechnicalConsts.library_version}"
+        "User-Agent": f"cyberintegratioins/{TechnicalConsts.library_version}"
     }
 
     STATUS_CODE_MSGS = {
