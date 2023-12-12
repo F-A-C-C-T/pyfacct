@@ -1,4 +1,6 @@
+# -*- encoding: utf-8 -*-
 """
+Copyright (c) 2023 - present by Group-IB
 
 This module contains poller for GIB TI.
 
@@ -8,14 +10,15 @@ from dataclasses import dataclass
 import json
 import logging
 from urllib.parse import urljoin, urlencode
-from typing import Union, Optional, List, Dict, Any, Generator
+from typing import Union, Optional, List, Dict, Any, Generator, Tuple
 
 import requests
+from requests import Response
 from requests.auth import HTTPBasicAuth
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from .exception import ConnectionException, ParserException
+from .exception import *
 from .const import *
 from .utils import Validator, ParserHelper
 
@@ -34,7 +37,7 @@ class GeneratorInfo(object):
     keys: Optional[Dict[any, str]] = None
     iocs_keys: Optional[Dict] = None
 
-    def __validate_default_fields(self) -> None:
+    def _validate_default_fields(self, collections_info=CollectionConsts.COLLECTIONS_INFO) -> None:
         """
         Function for field validation. This function must always be called in __post_init__.
         """
@@ -42,23 +45,29 @@ class GeneratorInfo(object):
         if self.date_from:
             Validator.validate_date_format(
                 date=self.date_from,
-                formats=CollectionConsts.COLLECTIONS_INFO.get(self.collection_name).get("date_formats")
+                formats=collections_info.get(self.collection_name).get("date_formats")
             )
         if self.date_to:
             Validator.validate_date_format(
                 date=self.date_to,
-                formats=CollectionConsts.COLLECTIONS_INFO.get(self.collection_name).get("date_formats")
+                formats=collections_info.get(self.collection_name).get("date_formats")
             )
-        # todo: прикрутить нормальную проверку
+
         if self.limit:
             int(self.limit)
+
+        if self.apply_hunting_rules:
+            try:
+                self.apply_hunting_rules in ['0', '1']
+            except InputException as e:
+                logger.exception("Wrong apply_hunting_rules input it should be '0' or '1'")
 
     def __post_init__(self) -> None:
         """
 
         This function is called after __init__ and is used to validate input data.
         """
-        self.__validate_default_fields()
+        self._validate_default_fields()
 
 
 class TIAPoller(object):
@@ -69,7 +78,10 @@ class TIAPoller(object):
     :param str api_key: API key, generated in GIB TI.
     :param str api_url: (optional) URL for GIB TI.
     """
-    def __init__(self, username: str, api_key: str, api_url: Optional[str] = RequestConsts.API_URL):
+
+    def __init__(self, username, api_key, api_url=RequestConsts.API_URL):
+        # type: (str, str, Optional[str]) -> None
+
         """
         :param username: Login for GIB TI.
         :param api_key: API key, generated in GIB TI.
@@ -83,16 +95,20 @@ class TIAPoller(object):
         self._keys = {}
         self._iocs_keys = {}
         self._mount_adapter_with_retries()
-        self.set_product(username=username)
+        # self.set_product(username=username)
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._session.close()
 
-    def _mount_adapter_with_retries(self, retries=RequestConsts.RETRIES,
-                                    backoff_factor=RequestConsts.BACKOFF_FACTOR,
-                                    status_forcelist=RequestConsts.STATUS_CODE_FORCELIST):
+    def _mount_adapter_with_retries(
+            self,
+            retries=RequestConsts.RETRIES,
+            backoff_factor=RequestConsts.BACKOFF_FACTOR,
+            status_forcelist=RequestConsts.STATUS_CODE_FORCELIST
+    ):
         retry = Retry(
             total=retries,
             read=retries,
@@ -105,6 +121,8 @@ class TIAPoller(object):
         self._session.mount('https://', adapter)
 
     def _status_code_handler(self, response):
+        # type: (Response) -> None
+
         status_code = response.status_code
         if status_code == 200:
             return
@@ -118,6 +136,15 @@ class TIAPoller(object):
             )
 
     def send_request(self, endpoint, params, decode=True, **kwargs):
+        # type: (str, dict, bool, Any) -> Any
+        """
+        Send request based on endpoint and custom params
+
+        :param endpoint: the endpoint will be applied to existing base url (api_url) using the urljoin.
+        :param params: dict-like object with params which will be set using the urlencode.
+        :param decode: decode output in JSON (True) or leave as plain text (False). By default, set to True.
+        """
+
         url = urljoin(self._api_url, endpoint)
         params = urlencode({k: v for k, v in params.items() if v})
         try:
@@ -130,7 +157,9 @@ class TIAPoller(object):
         except requests.exceptions.Timeout as e:
             raise ConnectionException(f"Max retries reached. Exception message: {e}")
 
-    def set_proxies(self, proxies: dict):
+    def set_proxies(self, proxies):
+        # type: (dict) -> None
+
         """
         Sets proxies for `Session` object.
 
@@ -138,7 +167,9 @@ class TIAPoller(object):
         """
         self._session.proxies = proxies
 
-    def set_verify(self, verify: Union[bool, str]):
+    def set_verify(self, verify):
+        # type: (Union[bool, str]) -> None
+
         """
         Sets verify for `Session` object.
 
@@ -153,68 +184,106 @@ class TIAPoller(object):
         """
         self._session.verify = verify
 
-    def set_product(self,
-                    system_type: str = f"{TechnicalConsts.system_type}",
-                    system_name: str = f'{TechnicalConsts.system_name}',
-                    system_version: str = f'{TechnicalConsts.system_version}',
-                    product_name: str = f'{TechnicalConsts.product_name}',
-                    product_version: str = f'{TechnicalConsts.product_version}',
-                    username: str = '',
-                    library_name: str = f'{TechnicalConsts.library_name}',
-                    library_version: str = f'{TechnicalConsts.library_version}'):
+    def set_product(
+            self,
+            product_type="unknown",
+            product_name="unknown",
+            product_version="unknown",
+            integration_name="unknown",
+            integration_version="unknown"
+    ):
+        # type: (Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]) -> None
 
-        def _refactor_under_slash(name, version):
-            return name if name == 'unknown' else f'{name}_{version}'
+        def _merge(name, version):
+            return "{}_{}".format(name, version) if name else "unknown"
 
-        self._session.headers["User-Agent"] = f"{system_type}/" \
-                                              f"{_refactor_under_slash(system_name,system_version)}/" \
-                                              f"{_refactor_under_slash(product_name,product_version)}/" \
-                                              f"{username}/" \
-                                              f"{library_name}_{library_version}"
+        self._session.headers["User-Agent"] = "{product_type}/{product}/{integration}/{username}/{library}".format(
+            product_type=product_type,
+            product=_merge(product_name, product_version),
+            integration=_merge(integration_name, integration_version),
+            # default metadata
+            username=self.__username,
+            library=_merge(TechnicalConsts.library_name, TechnicalConsts.library_version)
+        )
 
-    def set_keys(self, collection_name: str, keys: Dict[str, str]):
+    def set_keys(self, collection_name, keys):
+        # type: (str, Dict[str, str]) -> None
         """
-        Sets keys to search in the selected collection. `keys` should be python dict in this format:
-        {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
-        so set `data_you_want_to_find` using dot notation: ``firstkey.secondkey``. If you want to add your own data
-        to the results start your data_you_want_to_find with *. You also can make a full template to nest data
-        in the way you want.
+        Sets `Keys` to search in the selected collection. It should be python dict where
+            key - result name
 
-        For example:
-        Keys {'network': {'ips': 'iocs.network.ip'}, 'url': 'iocs.network.url', 'type': '*network'} for list of feeds:
+            value - dot notation string with searchable keys
 
-        [
-            {
-                'iocs': {
-                    'network':
-                        [{'ip': [1, 2], 'url': 'url.com'}, {'ip': [3], 'url': ''}]
-                }
-            },
+        Example:
+                {"result_name": "searchable_key_1.searchable_key_2"}
 
-            {
-                'iocs': {
-                    'network':
-                        [{'ip': [4, 5], 'url': 'new_url.com'}]
-                }
-            }
-        ]
 
-        return this
+        Parser search keys recursively in lists/dicts. If you want to set your own value in result,
+        then start with * before the name. You also can make a full template to nest data in the way you want.
 
-        [
-            {'network': {'ips': [[1, 2], [3]]}, 'url': ['url.com', ''], 'type': 'network'},
+        Explore the next sample:
 
-            {'network': {'ips': [[4, 5]]}, 'url': ['new_url.com'], 'type': 'network'}
-        ]
+            Your mapping dict:
 
-        :param collection_name: name of the collection whose keys to set.
-        :param keys: python dict with keys to get from parse.
+                >>> {
+                >>>     'network': {'ips': 'iocs.network.ip'},
+                >>>     'url': 'iocs.network.url',
+                >>>     'type': '*custom_network'
+                >>> }
+
+            Received feeds:
+
+                >>> [
+                >>>     {
+                >>>         'iocs': {
+                >>>             'network': [
+                >>>                 {
+                >>>                     'ip': [1, 2],
+                >>>                     'url': 'url.com'
+                >>>                 },
+                >>>                 {
+                >>>                     'ip': [3],
+                >>>                     'url': ''
+                >>>                 }
+                >>>             ]
+                >>>         }
+                >>>     },
+                >>>     {
+                >>>         'iocs': {
+                >>>             'network': [
+                >>>                 {
+                >>>                     'ip': [4, 5],
+                >>>                     'url': 'new_url.com'
+                >>>                 }
+                >>>             ]
+                >>>         }
+                >>>     }
+                >>> ]
+
+            Resulted output:
+
+                >>> [
+                >>>     {
+                >>>         'network': {'ips': [[1, 2], [3]]},
+                >>>         'url': ['url.com', ''],
+                >>>         'type': 'custom_network'
+                >>>     },
+                >>>     {
+                >>>         'network': {'ips': [[4, 5]]},
+                >>>         'url': ['new_url.com'],
+                >>>         'type': 'custom_network'
+                >>>     }
+                >>> ]
+
+        :param collection_name: name of the collection to set mapping keys for.
+        :param keys: python dict with mapping keys to parse.
         """
         Validator.validate_collection_name(collection_name)
         Validator.validate_set_keys_input(keys)
         self._keys[collection_name] = keys
 
-    def set_iocs_keys(self, collection_name: str, keys: Dict[str, str]):
+    def set_iocs_keys(self, collection_name, keys):
+        # type: (str, Dict[str, str]) -> None
         """
         Sets keys to search IOCs in the selected collection. `keys` should be the python dict in this format:
         {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
@@ -248,10 +317,18 @@ class TIAPoller(object):
         Validator.validate_set_iocs_keys_input(keys)
         self._iocs_keys[collection_name] = keys
 
-    def create_update_generator(self, collection_name: str, date_from: Optional[str] = None,
-                                date_to: Optional[str] = None, query: Optional[str] = None,
-                                sequpdate: Union[int, str] = None, limit: Union[int, str] = None,
-                                apply_hunting_rules: Union[int, str] = None):
+    def create_update_generator(
+            self,
+            collection_name,
+            date_from=None,
+            date_to=None,
+            query=None,
+            sequpdate=None,
+            limit=None,
+            apply_hunting_rules=None
+    ):
+        # type: (str, Optional[str], Optional[str], Optional[str], Union[int, str], Union[int, str], Union[int, str]) -> Generator[Parser, Any, None]
+
         """
         Creates generator of :class:`Parser` class objects for an update session
         (feeds are sorted in ascending order) for `collection_name` with set parameters.
@@ -277,15 +354,31 @@ class TIAPoller(object):
         :rtype: Generator[:class:`Parser`]
         """
         session_type = "update"
-        generator_info = GeneratorInfo(collection_name, session_type, date_from, date_to, query, limit,
-                                       apply_hunting_rules, keys=self._keys.get(collection_name),
-                                       iocs_keys=self._iocs_keys.get(collection_name))
+        generator_info = GeneratorInfo(
+            collection_name=collection_name,
+            session_type=session_type,
+            date_from=date_from,
+            date_to=date_to,
+            query=query,
+            limit=limit,
+            apply_hunting_rules=apply_hunting_rules,
+            keys=self._keys.get(collection_name),
+            iocs_keys=self._iocs_keys.get(collection_name)
+        )
         generator_class = UpdateFeedGenerator(self, generator_info, sequpdate=sequpdate)
         return generator_class.create_generator()
 
-    def create_search_generator(self, collection_name: str, date_from: str = None, date_to: Optional[str] = None,
-                                query: Optional[str] = None, limit: Union[str, int] = None,
-                                apply_hunting_rules: Union[int, str] = None):
+    def create_search_generator(
+            self,
+            collection_name,
+            date_from=None,
+            date_to=None,
+            query=None,
+            limit=None,
+            apply_hunting_rules=None
+    ):
+        # type: (str, Optional[str], Optional[str], Optional[str], Union[int, str], Union[int, str]) -> Generator
+
         """
         Creates generator of :class:`Parser` class objects for the search session 
         (feeds are sorted in descending order, **excluding compromised/breached amd compromised/reaper**)
@@ -309,7 +402,8 @@ class TIAPoller(object):
         generator_class = SearchFeedGenerator(self, generator_info)
         return generator_class.create_generator()
 
-    def search_feed_by_id(self, collection_name: str, feed_id: str):
+    def search_feed_by_id(self, collection_name, feed_id):
+        # type: (str, str) -> Parser
         """
         Searches for feed with `feed_id` in collection with `collection_name`.
 
@@ -324,7 +418,8 @@ class TIAPoller(object):
                          self._iocs_keys.get(collection_name, []))
         return portion
 
-    def search_file_in_threats(self, collection_name: str, feed_id: str, file_id: str) -> bytes:
+    def search_file_in_threats(self, collection_name, feed_id, file_id):
+        # type: (str, str, str) -> bytes
         """
         Searches for file with `file_id` in collection with `collection_name` in feed with `feed_id`.
 
@@ -339,8 +434,8 @@ class TIAPoller(object):
         binary_file = self.send_request(endpoint=endpoint, params={}, decode=False)
         return binary_file
 
-    def execute_action_by_id(self, collection_name: str, feed_id: str, action: str,
-                             request_params: Optional[Dict] = None, decode: Optional[bool] = True):
+    def execute_action_by_id(self, collection_name, feed_id, action, request_params=None, decode=True):
+        # type: (str, str, str, Optional[Dict], Optional[bool]) -> List[Dict[str, Any]]
         """
         Executes `action` for feed with `feed_id` in collection `collection_name`.
 
@@ -357,7 +452,8 @@ class TIAPoller(object):
         response = self.send_request(endpoint=endpoint, params=request_params, decode=decode)
         return response
 
-    def global_search(self, query: str) -> List[Dict[str, Any]]:
+    def global_search(self, query):
+        # type: (str) -> List[Dict[str, Any]]
         """
         Global search across all collections with provided `query`, returns dict
         with information about collection, count, etc.
@@ -368,7 +464,8 @@ class TIAPoller(object):
         response = self.send_request(endpoint=endpoint, params={"q": query})
         return response
 
-    def graph_ip_search(self, query: str) -> List[Dict[str, Any]]:
+    def graph_ip_search(self, query):
+        # type: (str) -> List[Dict[str, Any]]
         """
         Graph IP search returns WHOIS information from Graph API
 
@@ -379,7 +476,8 @@ class TIAPoller(object):
         response = self.send_request(endpoint=endpoint, params={"ip": query})
         return response
 
-    def graph_domain_search(self, query: str) ->List[Dict[str, Any]]:
+    def graph_domain_search(self, query):
+        # type: (str) -> List[Dict[str, Any]]
         """
         Graph domain search returns WHOIS information from Graph API
 
@@ -390,8 +488,13 @@ class TIAPoller(object):
         response = self.send_request(endpoint=endpoint, params={"domain": query})
         return response
 
-    def get_seq_update_dict(self, date: Optional[str] = None,
-                            apply_hunting_rules: Union[int, str] = None) -> Dict[str, int]:
+    def get_seq_update_dict(
+            self,
+            date=None,
+            collection_name=None,
+            apply_hunting_rules=None
+    ):
+        # type: (Optional[str], Optional[str], Union[int, str]) -> Dict[str, int]
         """
         Gets dict with `seqUpdate` for all collections from server for provided date.
         If date is not provide returns dict for today.
@@ -406,7 +509,11 @@ class TIAPoller(object):
             Validator.validate_date_format(date=date, formats=["%Y-%m-%d"])
 
         endpoint = "sequence_list"
-        params = {"date": date, "apply_hunting_rules": apply_hunting_rules}
+        if collection_name:
+            Validator.validate_collection_name(collection_name=collection_name)
+            params = {"date": date, "collection": collection_name, "apply_hunting_rules": apply_hunting_rules}
+        else:
+            params = {"date": date, "apply_hunting_rules": apply_hunting_rules}
         buffer_dict = self.send_request(endpoint=endpoint, params=params).get("list")
         seq_update_dict = {}
         for key in CollectionConsts.COLLECTIONS_INFO.keys():
@@ -414,7 +521,8 @@ class TIAPoller(object):
                 seq_update_dict[key] = buffer_dict[key]
         return seq_update_dict
 
-    def get_available_collections(self) -> List[str]:
+    def get_available_collections(self):
+        # type: () -> List[str]
         """
         Returns list of available collections.
         """
@@ -427,6 +535,39 @@ class TIAPoller(object):
             except Exception as e:
                 pass
         return collections_list
+
+    def get_available_collections_new(self):
+        """
+        Returns list of available collections.
+        """
+
+        endpoint = 'user/granted_collections'
+        list_collection = ParserHelper.find_element_by_key(self.send_request(endpoint=endpoint, params={}),
+                                                           'collection')
+        available_collection = []
+        for collection in CollectionConsts.COLLECTIONS_INFO.keys():
+            if collection in list_collection:
+                available_collection.append(collection)
+        for collection in CollectionConsts.ONLY_SEARCH_COLLECTIONS:
+            if collection in list_collection:
+                available_collection.append(collection)
+
+        return available_collection
+
+    def get_hunting_rules_collections(self):
+        """
+        Returns list of collections with hunting rules.
+        """
+        endpoint = 'user/granted_collections'
+        response = self.send_request(endpoint=endpoint, params={})
+        filtered_collections = []
+        for item in response:
+            if item.get("huntingRulesUsed"):
+                collection_name = item.get('collection')
+                if collection_name in CollectionConsts.COLLECTIONS_INFO.keys() or \
+                        collection_name in CollectionConsts.ONLY_SEARCH_COLLECTIONS:
+                    filtered_collections.append(collection_name)
+        return filtered_collections
 
     def close_session(self):
         """
@@ -444,7 +585,8 @@ class Parser(object):
     :param dict[str, str] iocs_keys: IOCs to find in portion.
     """
 
-    def __init__(self, chunk: Dict, keys: Dict[any, str], iocs_keys: Dict[str, str]):
+    def __init__(self, chunk, keys, iocs_keys):
+        # type: (Dict, Dict[any, str], Dict[str, str]) -> None
         """
         :param chunk: data portion.
         :param keys: fields to find in portion.
@@ -465,16 +607,55 @@ class Parser(object):
         else:
             raw_dict = [self.raw_dict]
         return raw_dict
+    def _keys_exist(self, feed, keys_road):
+        # type: (Dict, List[str]) -> bool
 
-    def parse_portion(self, keys: Optional[Dict[any, str]] = None,
-                      as_json: Optional[bool] = False) -> Union[str, List[Dict[Any, Any]]]:
+        for k in keys_road:
+            feed = feed.get(k, {})
+
+        if feed:
+            return True
+        return False
+
+    def _keys_found(self, feed, keys_road, check_list):
+        # type: (Dict, List[str], List[str]) -> bool
+
+        for k in keys_road:
+            feed = feed.get(k, {})
+
+        if isinstance(feed, list):
+            raise ValueError("Value to check should be String not List.")
+
+        if check_list:
+            if feed in check_list:
+                return True
+        return False
+
+    def parse_portion(
+            self,
+            keys=None,
+            as_json=False,
+            filter_map=None,
+            ignore=False,
+            check_existence=False
+    ):
+        # type: (Optional[Dict[any, str]], Optional[bool], Tuple[str, List], bool, bool) -> Union[str, List[Dict[Any, Any]]]
         """
-        Returns parsed portion of feeds using keys provided for current collection.
-        Every dict in list is one parsed feed.
+        Returns parsed portion list of feeds using keys provided for current collection.
+        Every dict in list is single parsed feed.
 
         :param keys: if provided override base keys set in poller.
         :param as_json: if True returns portion in JSON format.
+        :param filter_map: filter to **ignore**/**accept only** feeds which contains values in filter_map.
+        Depends on **ignore** flag.
+        :param ignore: flag to ignore values in filter_map. By default, set to False.
+        :param check_existence: flag to check existence of a key in filter_map. By default, set to False.
         """
+
+        if filter_map:
+            _keys_road = filter_map[0].split(".")
+            _check_list = filter_map[1]
+
         if not self.keys and not keys:
             raise ParserException("You didn't provide any keys for parsing portion.")
         if keys:
@@ -482,6 +663,22 @@ class Parser(object):
         parsed_portion = []
         raw_dict = self._return_items_list()
         for feed in raw_dict:
+
+            # Filter logic, which depends on args: filter_map, ignore and check_existence
+            if filter_map:
+                if ignore:
+                    # if ignore flag is True -> ignore keys from check_list
+                    if self._keys_found(feed=feed, keys_road=_keys_road, check_list=_check_list):
+                        continue
+                elif check_existence:
+                    # if check_existence flag is True -> accept only if key_road not null
+                    if not self._keys_exist(feed=feed, keys_road=_keys_road):
+                        continue
+                else:
+                    # if ignore flag is False -> accept only keys from check_list
+                    if not self._keys_found(feed=feed, keys_road=_keys_road, check_list=_check_list):
+                        continue
+
             parsed_dict = ParserHelper.find_by_template(feed, keys if keys else self.keys)
             parsed_portion.append(parsed_dict)
 
@@ -489,8 +686,8 @@ class Parser(object):
             return json.dumps(parsed_portion)
         return parsed_portion
 
-    def bulk_parse_portion(self, keys_list: List[Dict[any, str]],
-                           as_json: Optional[bool] = False) -> Union[str, List[List[Dict[Any, Any]]]]:
+    def bulk_parse_portion(self, keys_list, as_json=False):
+        # type: (List[Dict[any, str]], Optional[bool]) -> Union[str, List[List[Dict[Any, Any]]]]
         """
         Parses feeds in portion using every keys dict in the list.
         Every feed in parsed portion will be presented as list with parsed dicts for every keys dict.
@@ -507,15 +704,29 @@ class Parser(object):
             return json.dumps(parsed_portion)
         return parsed_portion
 
-    def get_iocs(self, keys: Optional[Dict] = None,
-                 as_json: Optional[bool] = False) -> Union[str, Dict[str, List]]:
+    def get_iocs(
+            self,
+            keys=None,
+            as_json=False,
+            filter_map=None,
+            ignore=False,
+            check_existence=False
+    ):
+        # type: (Optional[Dict], Optional[bool], Tuple[str, List], bool, bool) -> Union[str, Dict[str, List]]
         """
-        Returns dict of IOCs parsed from portion of feeds for current collection.
-        Keys are IOCs fields to search for current collection, values are list of IOCs for current portion.
+        Returns parsed portion dict of feeds using ioc_keys provided for current collection.
+        Keys are fields to search for current collection, values are list of gathered IOCs for current portion.
 
         :param keys: if provided override base iocs_keys set in poller.
-        :param as_json: if True returns iocs in JSON format.
+        :param as_json: if True returns IOCs in JSON format.
+        :param filter_map: filter to **ignore**/**accept only** feeds which contains values in filter_map. Depends on **ignore** flag.
+        :param ignore: flag to ignore values in filter_map. By default, set to False.
+        :param check_existence: flag to check existence of a key in filter_map. By default, set to False.
         """
+        if filter_map:
+            _keys_road = filter_map[0].split(".")
+            _check_list = filter_map[1]
+
         if not self.iocs_keys and not keys:
             raise ParserException("You didn't provide any keys for getting IOCs.")
         if keys:
@@ -528,6 +739,22 @@ class Parser(object):
         for key, value in iocs_keys.items():
             iocs = []
             for feed in raw_dict:
+
+                # Filter logic, which depends on args: filter_map, ignore and check_existence
+                if filter_map:
+                    if ignore:
+                        # if ignore flag is True -> ignore keys from check_list
+                        if self._keys_found(feed=feed, keys_road=_keys_road, check_list=_check_list):
+                            continue
+                    elif check_existence:
+                        # if check_existence flag is True -> accept only if key_road not null
+                        if not self._keys_exist(feed=feed, keys_road=_keys_road):
+                            continue
+                    else:
+                        # if ignore flag is False -> accept only keys from check_list
+                        if not self._keys_found(feed=feed, keys_road=_keys_road, check_list=_check_list):
+                            continue
+
                 ioc = ParserHelper.find_element_by_key(obj=feed, key=value)
                 iocs.extend(ParserHelper.unpack_iocs(ioc))
 
@@ -539,7 +766,8 @@ class Parser(object):
 
 
 class FeedGenerator(object):
-    def __init__(self, poller_object: TIAPoller, generator_info: GeneratorInfo):
+    def __init__(self, poller_object, generator_info):
+        # type: (TIAPoller, GeneratorInfo) -> None
         self.i = 0
         self.total_amount = 0
         self.poller_object = poller_object
@@ -547,14 +775,19 @@ class FeedGenerator(object):
         self.endpoint = self.generator_info.collection_name
 
     def _get_params(self):
-        return {'df': self.generator_info.date_from, 'dt': self.generator_info.date_to,
-                'q': self.generator_info.query, 'limit': self.generator_info.limit,
-                "apply_hunting_rules": self.generator_info.apply_hunting_rules}
+        return {
+            'df': self.generator_info.date_from,
+            'dt': self.generator_info.date_to,
+            'q': self.generator_info.query,
+            'limit': self.generator_info.limit,
+            'apply_hunting_rules': self.generator_info.apply_hunting_rules
+        }
 
     def _reset_params(self, portion):
         pass
 
     def create_generator(self):
+        # type: () -> Generator[Parser, Any, None]
         logger.info(f"Starting {self.generator_info.session_type} "
                     f"session for {self.generator_info.collection_name} collection")
 
@@ -574,7 +807,8 @@ class FeedGenerator(object):
 
 
 class UpdateFeedGenerator(FeedGenerator):
-    def __init__(self, poller_object: TIAPoller, generator_info: GeneratorInfo, sequpdate):
+    def __init__(self, poller_object, generator_info, sequpdate):
+        # type: (TIAPoller, GeneratorInfo, Union[int, str]) -> None
         super().__init__(poller_object, generator_info)
         self.sequpdate = sequpdate
         self.endpoint = f"{self.generator_info.collection_name}/updated"
@@ -588,7 +822,8 @@ class UpdateFeedGenerator(FeedGenerator):
 
 
 class SearchFeedGenerator(FeedGenerator):
-    def __init__(self, poller_object: TIAPoller, generator_info: GeneratorInfo):
+    def __init__(self, poller_object, generator_info):
+        # type: (TIAPoller, GeneratorInfo) -> None
         super().__init__(poller_object, generator_info)
         self.result_id = None
 
@@ -598,3 +833,174 @@ class SearchFeedGenerator(FeedGenerator):
     def _reset_params(self, portion):
         self.result_id = portion._result_id
         self.generator_info.date_from, self.generator_info.date_to, self.generator_info.query = None, None, None
+
+
+@dataclass(order=True)
+class DRPGeneratorInfo(GeneratorInfo):
+    violationType: Optional[Union[List[int], List[str]]] = None
+    section: Optional[Union[List[int], List[str]]] = None
+
+    def _validate_default_fields(self, collections_info=CollectionConsts.DRP_COLLECTIONS_INFO):
+        super()._validate_default_fields(collections_info=CollectionConsts.DRP_COLLECTIONS_INFO)
+
+
+class DRPPoller(TIAPoller):
+    """
+    Poller is used for requests to Group-IB DRP API.
+    """
+
+    def __init__(self, username, api_key, api_url=RequestConsts.API_URL_DRP):
+        # type: (str, str, Optional[str]) -> None
+        """
+        :param username: Login for Group-IB DRP.
+        :param api_key: API key, generated in your Group-IB DRP Portal profile.
+        :param api_url: (optional) URL for Group-IB DRP API.
+        """
+        super().__init__(username, api_key, api_url)
+
+    def create_update_generator(
+            self,
+            collection_name,
+            date_from=None,
+            date_to=None,
+            query=None,
+            sequpdate=None,
+            limit=None,
+            apply_hunting_rules=None,
+            violationType=None,
+            section=None
+    ):
+        # type: (str, Optional[str], Optional[str], Optional[str], Union[int, str], Union[int, str], Union[int, str], Union[List[int], List[str]], Union[List[int], List[str]]) -> Generator[Parser, Any, None]
+        """
+        Creates generator of :class:`Parser` class objects for an update session
+        (feeds are sorted in ascending order) for `collection_name` with set parameters.
+        `sequpdate` allows you to receive all relevant feeds. Such a request uses the sequpdate parameter,
+        you will receive a portion of feeds that starts with the next `sequpdate` parameter for the current collection.
+        For all feeds in the Group IB Intelligence continuous numbering is carried out.
+        For example, the `sequpdate` equal to 1999998 can be in the `compromised/accounts` collection,
+        and a feed with sequpdate equal to 1999999 can be in the `attacks/ddos` collection.
+        If item updates (for example, if new attacks were associated with existing APT by our specialists or tor node
+        has been detected as active again), the item gets a new parameter and it automatically rises in the database
+        and "becomes relevant" again.
+
+        .. warning:: Dates should be in one of this formats: "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ssZ".
+        For most collections, limits are set on the server and can't be exceeded.
+
+        :param violationType: 1 - scam; 2 - counterfeit
+        :param section: 1 - Web; 2 - Mobile apps; 3 - Marketplace; 4 - Social networks; 5 - Advertising; 6 - Instant messengers
+        :param collection_name: collection to update.
+        :param date_from: start date of update session.
+        :param date_to: end date of update session.
+        :param query: query to search during update session.
+        :param sequpdate: identification number from which to start the session.
+        :param limit: size of portion in iteration.
+        :param apply_hunting_rules: apply or not client hunting rules to get only filtered data (applicable for public_leak, phishing_group and breached)
+        :rtype: Generator[:class:`Parser`]
+        """
+        session_type = "update"
+        generator_info = DRPGeneratorInfo(
+            collection_name=collection_name,
+            session_type=session_type,
+            date_from=date_from,
+            date_to=date_to,
+            query=query,
+            limit=limit,
+            apply_hunting_rules=apply_hunting_rules,
+            keys=self._keys.get(collection_name),
+            iocs_keys=self._iocs_keys.get(collection_name),
+            violationType=violationType,
+            section=section
+        )
+        generator_class = DPRUpdateFeedGenerator(self, generator_info, sequpdate=sequpdate)
+        return generator_class.create_generator()
+
+    def get_seq_update_dict(
+            self,
+            date=None,
+            collection=None,
+            apply_hunting_rules=None
+    ):
+        # type: (Optional[str], Optional[str], Union[int, str]) -> Dict[str, int]
+        """
+        Gets dict with `seqUpdate` key for each collection from server based on provided date, collection name or
+        hunting rules. If date is not provided, returns dict for the current day.
+
+        .. warning:: Date should be in "YYYY-MM-DD" format.
+
+        :param date: defines start date to get seqUpdate.
+        :param collection: filter by collection name
+        :param apply_hunting_rules: apply or not client hunting rules to get only filtered data (applicable for public_leak, phishing_group and breached)
+        :return: dict with collection names in keys and seq updates in values.
+        """
+        if date:
+            Validator.validate_date_format(date=date, formats=["%Y-%m-%d"])
+
+        # timestamp = datetime.fromisoformat(date).replace(tzinfo=timezone.utc).timestamp()
+        # fmt_str = r"%Y-%m-%dT%H:%M:%S.%f"
+
+        # replaces the fromisoformat, not available in python 3.6
+        fmt_str = r"%Y-%m-%d"
+        timestamp = datetime.strptime(date, fmt_str).replace(tzinfo=timezone.utc).timestamp()
+
+        seconds = datetime.fromtimestamp(timestamp, tz=timezone.utc).timestamp()
+        miliseconds = seconds * 1000
+        microseconds = miliseconds * 1000
+        seqUpdate = int(microseconds)
+
+        seq_update_dict = {}
+        for key in CollectionConsts.DRP_COLLECTIONS_INFO.keys():
+            seq_update_dict[key] = seqUpdate
+        return seq_update_dict
+
+
+class DRPParser(Parser):
+    """
+    An object that handles raw JSON with various methods.
+    """
+
+    def __init__(self, chunk, keys, iocs_keys):
+        # type: (Dict, Dict[any, str], Dict[str, str]) -> None
+        """
+        :param chunk: data portion.
+        :param keys: fields to find in portion.
+        :param iocs_keys: IOCs to find in portion.
+        """
+        super(Parser, self).__init__(chunk, keys, iocs_keys)
+        self.count = self.raw_dict.get('total', None)
+
+
+class DRPFeedGenerator(FeedGenerator):
+    """
+    Base Feed Generator class
+    """
+    def __init__(self, poller_object: DRPPoller, generator_info: DRPGeneratorInfo):
+        super().__init__(poller_object, generator_info)
+        self.generator_info = generator_info
+
+    def _get_params(self):
+        return {
+            'df': self.generator_info.date_from,
+            'dt': self.generator_info.date_to,
+            'q': self.generator_info.query,
+            'limit': self.generator_info.limit,
+            'apply_hunting_rules': self.generator_info.apply_hunting_rules,
+            'violationType[]': self.generator_info.violationType,
+            'section[]': self.generator_info.section
+        }
+
+
+class DPRUpdateFeedGenerator(DRPFeedGenerator):
+
+    def __init__(self, poller_object: DRPPoller, generator_info: DRPGeneratorInfo, sequpdate):
+        super().__init__(poller_object, generator_info)
+        self.sequpdate = sequpdate
+        self.endpoint = f"{self.generator_info.collection_name}"
+
+    def _get_params(self):
+        return {**super()._get_params(), "seqUpdate": self.sequpdate}
+
+    def _reset_params(self, portion):
+        self.sequpdate = portion.sequpdate
+        self.generator_info.date_from = None
+
+
