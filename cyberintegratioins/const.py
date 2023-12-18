@@ -1,14 +1,19 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (c) 2023 - present by Group-IB
+Copyright (c) 2024 - present by Group-IB
+
+This module contains const for GIB.
+
 """
+
+
 class TechnicalConsts(object):
     library_name = "cyberintegrations"
-    library_version = "0.6.2"
+    library_version = "0.7.0"
 
 
 class RequestConsts(object):
-    API_URL = 'https://tap.group-ib.com/api/v2/'
+    API_URL_TI = 'https://tap.group-ib.com/api/v2/'
     API_URL_DRP = 'https://drp.group-ib.com/client_api/'
     HEADERS = {
         "Accept": "*/*",
@@ -37,29 +42,26 @@ class RequestConsts(object):
 class CollectionConsts(object):
     BASE_DATE_FORMATS = ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%SZ"]
 
-    COLLECTIONS_INFO = {
+    TI_COLLECTIONS_INFO = {
         # TI Collections
         "apt/threat": {"date_formats": BASE_DATE_FORMATS},
         "apt/threat_actor": {"date_formats": BASE_DATE_FORMATS},
+        "hi/open_threats": {"date_formats": BASE_DATE_FORMATS},
+        "hi/threat": {"date_formats": BASE_DATE_FORMATS},
+        "hi/threat_actor": {"date_formats": BASE_DATE_FORMATS},
         "attacks/ddos": {"date_formats": BASE_DATE_FORMATS},
         "attacks/deface": {"date_formats": BASE_DATE_FORMATS},
-        "attacks/phishing": {"date_formats": BASE_DATE_FORMATS},
         "attacks/phishing_group": {"date_formats": BASE_DATE_FORMATS},
         "attacks/phishing_kit": {"date_formats": BASE_DATE_FORMATS},
-        "compromised/account": {"date_formats": BASE_DATE_FORMATS},
         "compromised/access": {"date_formats": BASE_DATE_FORMATS},
         "compromised/account_group": {"date_formats": BASE_DATE_FORMATS},
         "compromised/bank_card_group": {"date_formats": BASE_DATE_FORMATS},
         "compromised/breached": {"date_formats": BASE_DATE_FORMATS},
         "compromised/discord": {"date_formats": BASE_DATE_FORMATS},
-        "compromised/imei": {"date_formats": BASE_DATE_FORMATS},
         "compromised/masked_card": {"date_formats": BASE_DATE_FORMATS},
         "compromised/messenger": {"date_formats": BASE_DATE_FORMATS},
         "compromised/mule": {"date_formats": BASE_DATE_FORMATS},
         "compromised/reaper": {"date_formats": BASE_DATE_FORMATS},
-        "hi/open_threats": {"date_formats": BASE_DATE_FORMATS},
-        "hi/threat": {"date_formats": BASE_DATE_FORMATS},
-        "hi/threat_actor": {"date_formats": BASE_DATE_FORMATS},
         "ioc/common": {"date_formats": BASE_DATE_FORMATS},
         "malware/cnc": {"date_formats": BASE_DATE_FORMATS},
         "malware/config": {"date_formats": BASE_DATE_FORMATS},
@@ -74,7 +76,29 @@ class CollectionConsts(object):
         "suspicious_ip/socks_proxy": {"date_formats": BASE_DATE_FORMATS},
         "suspicious_ip/tor_node": {"date_formats": BASE_DATE_FORMATS},
         "suspicious_ip/vpn": {"date_formats": BASE_DATE_FORMATS},
+
+        # TI graph
+        "utils/graph/domain": "",
+        "utils/graph/ip": "",
+
+        # TI search
+        "search": "",
+
+        # Deprecated
+        # "attacks/phishing": {"date_formats": BASE_DATE_FORMATS},
+        # "compromised/account": {"date_formats": BASE_DATE_FORMATS},
+        # "compromised/imei": {"date_formats": BASE_DATE_FORMATS},
+        # "compromised/bank_card": {"date_formats": BASE_DATE_FORMATS},
+        # "compromised/card": {"date_formats": BASE_DATE_FORMATS},
+        # "osi/git_leak": {"date_formats": BASE_DATE_FORMATS},
+        # "bp/phishing": {"date_formats": BASE_DATE_FORMATS},
+        # "bp/phishing_kit": {"date_formats": BASE_DATE_FORMATS},
+
     }
+
+    # TI Collections extra
+    ONLY_SEARCH_COLLECTIONS = ["compromised/breached", "compromised/reaper"]
+
     DRP_COLLECTIONS_INFO = {
         # DRP Collections
         "violation/list": {"date_formats": BASE_DATE_FORMATS},
@@ -83,6 +107,3 @@ class CollectionConsts(object):
         "compromised/darkweb": {"date_formats": BASE_DATE_FORMATS},
         "compromised/breached_db": {"date_formats": BASE_DATE_FORMATS}
     }
-
-    # TI Collections extra
-    ONLY_SEARCH_COLLECTIONS = ["compromised/breached", "compromised/reaper"]

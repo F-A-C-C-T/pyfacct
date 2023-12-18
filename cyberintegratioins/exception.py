@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (c) 2023 - present by Group-IB
+Copyright (c) 2024 - present by Group-IB
 
 This module contains the set of integration exceptions.
 
@@ -49,3 +49,7 @@ class BadProtocolError(Exception):
 
 class EncryptionError(Exception):
     """All errors encountered by Encryption are reported via this class"""
+
+
+class AttributeError(Exception):
+    """ Attribute not found. """
