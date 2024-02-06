@@ -1,8 +1,8 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (c) 2024 - present by Group-IB
+Copyright (c) 2024
 
-This module contains utils for GIB.
+This module contains utils.
 
 """
 

@@ -1,8 +1,8 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (c) 2024 - present by Group-IB
+Copyright (c) 2024
 
-This module contains const for GIB.
+This module contains.
 
 """
 
@@ -13,19 +13,19 @@ class TechnicalConsts(object):
 
 
 class RequestConsts(object):
-    API_URL_TI = 'https://tap.group-ib.com/api/v2/'
-    API_URL_DRP = 'https://drp.group-ib.com/client_api/'
+    # API_URL_TI = 'https://tap.group-ib.com/api/v2/'
+    # API_URL_DRP = 'https://drp.group-ib.com/client_api/'
     HEADERS = {
         "Accept": "*/*",
         "User-Agent": f"cyberintegrations/{TechnicalConsts.library_version}"
     }
 
     STATUS_CODE_MSGS = {
-        301: "Verify that your public IP is whitelisted by Group-IB.",
-        302: "Verify that your public IP is whitelisted by Group-IB.",
+        301: "Verify that your public IP is whitelisted.",
+        302: "Verify that your public IP is whitelisted.",
         400: "Bad Credentials or Wrong request. The issue can be related to the wrong searchable tag for entity.",
         401: "Bad Credentials.",
-        403: "Something is wrong with your account, please, contact Group-IB. "
+        403: "Something is wrong with your account, please, contact support. "
              "The issue can be related to Whitelist, Wrong API key or Wrong username.",
         404: "Not found. There is no such data on server or you are using wrong endpoint.",
         429: "Maximum count of requests per second reached, please, "
@@ -101,6 +101,7 @@ class CollectionConsts(object):
 
     DRP_COLLECTIONS_INFO = {
         # DRP Collections
+        "violation": {"date_formats": BASE_DATE_FORMATS},
         "violation/list": {"date_formats": BASE_DATE_FORMATS},
         "compromised/public_leaks": {"date_formats": BASE_DATE_FORMATS},
         "compromised/git_leaks": {"date_formats": BASE_DATE_FORMATS},

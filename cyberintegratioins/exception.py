@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (c) 2024 - present by Group-IB
+Copyright (c) 2024
 
 This module contains the set of integration exceptions.
 

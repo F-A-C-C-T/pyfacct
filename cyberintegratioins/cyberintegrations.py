@@ -1,8 +1,8 @@
 # -*- encoding: utf-8 -*-
 """
-Copyright (c) 2024 - present by Group-IB
+Copyright (c) 2024
 
-This module contains poller for GIB.
+This module contains poller.
 
 """
 from datetime import datetime, timezone
@@ -91,30 +91,29 @@ class DRPGeneratorInfo(GeneratorInfo):
 
 class Poller(object):
     """
-    Poller that can be used for requests to GIB TI.
+    Poller that can be used for requests to TI.
 
-    :param str username: Login for GIB TI.
-    :param str api_key: API key, generated in GIB TI.
-    :param str api_url: (optional) URL for GIB TI.
+    :param str username: Login for TI.
+    :param str api_key: API key, generated in TI.
+    :param str api_url: (optional) URL for TI.
     """
 
-    def __init__(self, username, api_key):
-        # type: (str, str) -> None
+    def __init__(self, username, api_key, api_url):
+        # type: (str, str, str) -> None
 
         """
-        :param username: Login for GIB.
-        :param api_key: API key, generated in GIB.
+        :param username: Login.
+        :param api_key: API key, generated in profile.
         """
         self._session = requests.Session()
         self._session.auth = HTTPBasicAuth(username, api_key)
         self._session.headers.update(RequestConsts.HEADERS)
         self._session.verify = False
-        self._username=username
-        self._api_url = None
+        self._username = username
+        self._api_url = api_url
         self._keys = {}
         self._iocs_keys = {}
         self._mount_adapter_with_retries()
-
 
     def __enter__(self):
         return self
@@ -154,50 +153,44 @@ class Poller(object):
                 f"Something wrong. Status code: {status_code}. Response body: {response.text}."
             )
 
-    def send_get_request(self, endpoint, params, decode=True, **kwargs):
-        # type: (str, dict, bool, Any) -> Any
+    def send_request(
+            self,
+            endpoint,
+            method='GET',
+            data=None,
+            params=None,
+            decode=True,
+            **kwargs
+    ):
+        # type: (str, Literal['GET', 'POST'] , Optional[dict], Optional[dict], bool, Any) -> Any
         """
         Send request based on endpoint and custom params
 
-        :param endpoint: the endpoint will be applied to existing base url (api_url) using the urljoin.
-        :param params: dict-like object with params which will be set using the urlencode.
+        :param endpoint: the endpoint will be applied to the existing base URL (api_url) using the urljoin.
+        :param method: HTTP method ('GET' or 'POST').
+        :param data: dict-like object with data to be sent in the request body for POST requests.
+        :param params: dict-like object with params which will be set using the urlencode for GET requests.
         :param decode: decode output in JSON (True) or leave as plain text (False). By default, set to True.
         """
 
         url = urljoin(self._api_url, endpoint)
-        params = urlencode({k: v for k, v in params.items() if v})
+        params = urlencode({k: v for k, v in (params or {}).items() if v})
+
+        methods = {
+            'GET': self._session.get,
+            'POST': self._session.post,
+        }
+
         try:
-            response = self._session.get(
+            response = methods.get(method.upper())(
                 url,
+                data=data,
                 params=params,
                 timeout=RequestConsts.TIMEOUT,
-                proxies=self._session.proxies
+                proxies=self._session.proxies,
+                **kwargs
             )
-            self._status_code_handler(response)
-            if decode:
-                return response.json()
-            return response.content
-        except requests.exceptions.Timeout as e:
-            raise ConnectionException(f"Max retries reached. Exception message: {e}")
 
-    def send_post_request(self, endpoint, body, decode=True, **kwargs):
-        # type: (str, dict, bool, Any) -> Any
-        """
-        Send POST request based on endpoint and custom data
-
-        :param endpoint: the endpoint will be applied to existing base url (api_url) using the urljoin.
-        :param data: dict-like object with data to be sent in the request body.
-        :param decode: decode output in JSON (True) or leave as plain text (False). By default, set to True.
-        """
-
-        url = urljoin(self._api_url, endpoint)
-        try:
-            response = self._session.post(
-                url,
-                json=body,
-                timeout=RequestConsts.TIMEOUT,
-                proxies=self._session.proxies
-            )
             self._status_code_handler(response)
             if decode:
                 return response.json()
@@ -327,8 +320,8 @@ class Poller(object):
             library=_merge(TechnicalConsts.library_name, TechnicalConsts.library_version)
         )
 
-    def set_keys(self, collection_name, keys):
-        # type: (str, Dict[str, str]) -> None
+    def set_keys(self, collection_name, keys, ignore_validation=None):
+        # type: (str, Dict[str, str], Optional[bool]) -> None
         """
         Sets `Keys` to search in the selected collection. It should be python dict where
             key - result name
@@ -399,12 +392,13 @@ class Poller(object):
         :param collection_name: name of the collection to set mapping keys for.
         :param keys: python dict with mapping keys to parse.
         """
-        Validator.validate_collection_name(collection_name)
-        Validator.validate_set_keys_input(keys)
+        if not ignore_validation:
+            Validator.validate_collection_name(collection_name)
+            Validator.validate_set_keys_input(keys)
         self._keys[collection_name] = keys
 
-    def set_iocs_keys(self, collection_name, keys):
-        # type: (str, Dict[str, str]) -> None
+    def set_iocs_keys(self, collection_name, keys, ignore_validation=False):
+        # type: (str, Dict[str, str], Optional[bool]) -> None
         """
         Sets keys to search IOCs in the selected collection. `keys` should be the python dict in this format:
         {key_name_you_want_in_result_dict: data_you_want_to_find}. Parser finds keys recursively in lists/dicts
@@ -434,8 +428,9 @@ class Poller(object):
         :param collection_name: name of the collection whose keys to set.
         :param keys: python dict with keys to get from parse.
         """
-        Validator.validate_collection_name(collection_name)
-        Validator.validate_set_iocs_keys_input(keys)
+        if not ignore_validation:
+            Validator.validate_collection_name(collection_name)
+            Validator.validate_set_iocs_keys_input(keys)
         self._iocs_keys[collection_name] = keys
 
     def close_session(self):
@@ -446,14 +441,14 @@ class Poller(object):
 
 
 class TIPoller(Poller):
-    def __init__(self, username, api_key, api_url=RequestConsts.API_URL_TI):
-        # type: (str, str, Optional[str]) -> None
+    def __init__(self, username, api_key, api_url):
+        # type: (str, str, str) -> None
         """
-        :param username: Login for GIB TI.
-        :param api_key: API key, generated in GIB TI.
+        :param username: Login for TI.
+        :param api_key: API key, generated in TI.
+        :param api_url: API url
         """
-        super().__init__(username=username, api_key=api_key)
-        self._api_url = api_url
+        super().__init__(username=username, api_key=api_key, api_url=api_url)
 
     def search_feed_by_id(self, collection_name, feed_id):
         # type: (str, str) -> Parser
@@ -466,7 +461,7 @@ class TIPoller(Poller):
         """
         Validator.validate_collection_name(collection_name)
         endpoint = f"{collection_name}/{feed_id}"
-        chunk = self.send_get_request(endpoint=endpoint, params={})
+        chunk = self.send_request(endpoint=endpoint, params={})
         portion = Parser(chunk, self._keys.get(collection_name, []),
                          self._iocs_keys.get(collection_name, []))
         return portion
@@ -484,7 +479,7 @@ class TIPoller(Poller):
         """
         Validator.validate_collection_name(collection_name)
         endpoint = f"{collection_name}/{feed_id}/file/{file_id}"
-        binary_file = self.send_get_request(endpoint=endpoint, params={}, decode=False)
+        binary_file = self.send_request(endpoint=endpoint, params={}, decode=False)
         return binary_file
 
     def execute_action_by_id(self, collection_name, feed_id, action, request_params=None, decode=True):
@@ -502,7 +497,7 @@ class TIPoller(Poller):
         if action[0] == "/":
             action = action[1::]
         endpoint = f"{collection_name}/{feed_id}/action/{action}"
-        response = self.send_get_request(endpoint=endpoint, params=request_params, decode=decode)
+        response = self.send_request(endpoint=endpoint, params=request_params, decode=decode)
         return response
 
     def global_search(self, query):
@@ -514,7 +509,7 @@ class TIPoller(Poller):
         :param query: query to search for.
         """
         endpoint = "search"
-        response = self.send_get_request(endpoint=endpoint, params={"q": query})
+        response = self.send_request(endpoint=endpoint, params={"q": query})
         return response
 
     def graph_ip_search(self, query):
@@ -526,7 +521,7 @@ class TIPoller(Poller):
         """
 
         endpoint = "utils/graph/ip"
-        response = self.send_get_request(endpoint=endpoint, params={"ip": query})
+        response = self.send_request(endpoint=endpoint, params={"ip": query})
         return response
 
     def graph_domain_search(self, query):
@@ -538,7 +533,7 @@ class TIPoller(Poller):
         """
 
         endpoint = "utils/graph/domain"
-        response = self.send_get_request(endpoint=endpoint, params={"domain": query})
+        response = self.send_request(endpoint=endpoint, params={"domain": query})
         return response
 
     def get_seq_update_dict(
@@ -567,7 +562,7 @@ class TIPoller(Poller):
             params = {"date": date, "collection": collection_name, "apply_hunting_rules": apply_hunting_rules}
         else:
             params = {"date": date, "apply_hunting_rules": apply_hunting_rules}
-        buffer_dict = self.send_get_request(endpoint=endpoint, params=params).get("list")
+        buffer_dict = self.send_request(endpoint=endpoint, params=params).get("list")
         seq_update_dict = {}
         for key in CollectionConsts.TI_COLLECTIONS_INFO.keys():
             if key in buffer_dict.keys():
@@ -580,7 +575,7 @@ class TIPoller(Poller):
         """
 
         endpoint = 'user/granted_collections'
-        list_collection = ParserHelper.find_element_by_key(self.send_get_request(endpoint=endpoint, params={}),
+        list_collection = ParserHelper.find_element_by_key(self.send_request(endpoint=endpoint, params={}),
                                                            'collection')
         available_collection = []
         for collection in CollectionConsts.TI_COLLECTIONS_INFO.keys():
@@ -597,7 +592,7 @@ class TIPoller(Poller):
         Returns list of collections with hunting rules.
         """
         endpoint = 'user/granted_collections'
-        response = self.send_get_request(endpoint=endpoint, params={})
+        response = self.send_request(endpoint=endpoint, params={})
         filtered_collections = []
         for item in response:
             if item.get("huntingRulesUsed"):
@@ -683,16 +678,15 @@ class TIPoller(Poller):
 
 class DRPPoller(Poller):
     """
-    Poller is used for requests to Group-IB DRP API.
+    Poller is used for requests to DRP API.
     """
-    def __init__(self, username, api_key, api_url=RequestConsts.API_URL_DRP):
-        # type: (str, str, Optional[str]) -> None
+    def __init__(self, username, api_key, api_url):
+        # type: (str, str, str) -> None
         """
-        :param username: Login for Group-IB DRP.
-        :param api_key: API key, generated in your Group-IB DRP Portal profile.
+        :param username: Login.
+        :param api_key: API key, generated in your DRP Portal profile.
         """
-        super().__init__(username=username, api_key=api_key)
-        self._api_url = api_url
+        super().__init__(username=username, api_key=api_key, api_url=api_url)
 
     def change_status(
             self,
@@ -700,7 +694,7 @@ class DRPPoller(Poller):
             status
     ):
         # type: (str ,Literal['approve', 'reject']) -> None
-        collection_name = "violation/list"
+        collection_name = "violation"
 
         response = self.search_feed_by_id(collection_name=collection_name, feed_id=feed_id)
         if response.raw_dict.get('status') == 'detected' and response.raw_dict.get('approveState') == 'under_review':
@@ -709,7 +703,7 @@ class DRPPoller(Poller):
                 "violationId": feed_id,
                 "approve": status
             }
-            self.send_post_request(endpoint=endpoint, body=body)
+            self.send_request(endpoint=endpoint, method="POST", body=body)
         else:
             logger.exception(AttributeError("Сan not change the status of the selected feed"))
 
@@ -728,7 +722,7 @@ class DRPPoller(Poller):
         """
         Validator.validate_collection_name(collection_name)
         endpoint = f"{collection_name}/{feed_id}"
-        chunk = self.send_get_request(endpoint=endpoint, params={})
+        chunk = self.send_request(endpoint=endpoint, params={})
         portion = Parser(chunk, self._keys.get(collection_name, []),
                          self._iocs_keys.get(collection_name, []))
         return portion
@@ -861,7 +855,7 @@ class FeedGenerator(object):
         while True:
             self.i += 1
             logger.info(f"Loading {self.i} portion")
-            chunk = self.poller_object.send_get_request(endpoint=self.endpoint, params=self._get_params())
+            chunk = self.poller_object.send_request(endpoint=self.endpoint, params=self._get_params())
             portion = Parser(chunk, self.generator_info.keys, self.generator_info.iocs_keys)
             logger.info(f"{self.i} portion was loaded")
             if portion.portion_size == 0:
