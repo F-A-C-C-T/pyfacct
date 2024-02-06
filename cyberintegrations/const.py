@@ -13,8 +13,6 @@ class TechnicalConsts(object):
 
 
 class RequestConsts(object):
-    # API_URL_TI = 'https://tap.group-ib.com/api/v2/'
-    # API_URL_DRP = 'https://drp.group-ib.com/client_api/'
     HEADERS = {
         "Accept": "*/*",
         "User-Agent": f"cyberintegrations/{TechnicalConsts.library_version}"
