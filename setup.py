@@ -2,8 +2,8 @@ from setuptools import setup
 
 setup(
     name='cyberintegratioins',
-    version="0.5.21",
-    description='Package provides poller for Group-IB Threat Intelligence product',
+    version="0.7.0",
+    description='Package provides pollers',
     python_requires='>=3.6',
     install_requires=['requests>=2.25.1', 'dataclasses', 'urllib3'],
     packages=['cyberintegratioins'],
