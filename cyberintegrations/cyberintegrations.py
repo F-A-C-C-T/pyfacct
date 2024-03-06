@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import json
 import logging
 from urllib.parse import urljoin, urlencode
-from typing import Union, Optional, List, Dict, Any, Generator, Tuple, Literal
+from typing import Union, Optional, List, Dict, Any, Generator, Tuple
 
 import requests
 from requests import Response
@@ -162,7 +162,7 @@ class Poller(object):
             decode=True,
             **kwargs
     ):
-        # type: (str, Literal['GET', 'POST'] , Optional[dict], Optional[dict], bool, Any) -> Any
+        # type: (str, Union['GET', 'POST'] , Optional[dict], Optional[dict], bool, Any) -> Any
         """
         Send request based on endpoint and custom params
 
@@ -207,7 +207,7 @@ class Poller(object):
             proxy_password=None,
             encrypted_data_handler=None
     ):
-        # type: (Literal['http', 'https'], str, str, str, str, Any) -> Union[Dict[str, str], None]
+        # type: (Union['http', 'https'], str, str, str, str, Any) -> Union[Dict[str, str], None]
         """
         Method that returns proxies from given arguments. Only HTTP and HTTPS allowed.
 
@@ -693,7 +693,7 @@ class DRPPoller(Poller):
             feed_id,
             status
     ):
-        # type: (str ,Literal['approve', 'reject']) -> None
+        # type: (str , Union['approve', 'reject']) -> None
         collection_name = "violation"
 
         response = self.search_feed_by_id(collection_name=collection_name, feed_id=feed_id)

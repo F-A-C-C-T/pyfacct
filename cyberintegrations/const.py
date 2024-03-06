@@ -2,7 +2,7 @@
 """
 Copyright (c) 2024
 
-This module contains.
+This module contains consts.
 
 """
 
@@ -19,12 +19,12 @@ class RequestConsts(object):
     }
 
     STATUS_CODE_MSGS = {
-        301: "Verify that your public IP is whitelisted.",
-        302: "Verify that your public IP is whitelisted.",
+        301: "Verify that your public IP is accesslisted.",
+        302: "Verify that your public IP is accesslisted.",
         400: "Bad Credentials or Wrong request. The issue can be related to the wrong searchable tag for entity.",
         401: "Bad Credentials.",
         403: "Something is wrong with your account, please, contact support. "
-             "The issue can be related to Whitelist, Wrong API key or Wrong username.",
+             "The issue can be related to Access list, Wrong API key or Wrong username.",
         404: "Not found. There is no such data on server or you are using wrong endpoint.",
         429: "Maximum count of requests per second reached, please, "
              "decrease number of requests per seconds to this collections.",
