@@ -1,3 +1,11 @@
+# -*- encoding: utf-8 -*-
+"""
+Copyright (c) 2024
+
+This module contains utils.
+
+"""
+
 from datetime import datetime
 from .exception import InputException
 from .const import CollectionConsts
@@ -8,10 +16,13 @@ class Validator(object):
     def validate_collection_name(cls, collection_name, method=None):
         if method == "update" and collection_name in CollectionConsts.ONLY_SEARCH_COLLECTIONS:
             raise InputException(f"{collection_name} collection must be used only with a search generator.")
-        collection_names = CollectionConsts.COLLECTIONS_INFO.keys()
-        if collection_name not in collection_names:
+
+        collection_names = CollectionConsts.TI_COLLECTIONS_INFO.keys()
+        drp_collection_names = CollectionConsts.DRP_COLLECTIONS_INFO.keys()
+        if (collection_name not in collection_names) and (collection_name not in drp_collection_names):
             raise InputException(f"Invalid collection name {collection_name}, "
-                                 f"should be one of this {', '.join(collection_names)}")
+                                 f"should be one of this {', '.join(collection_names)} "
+                                 f"or one of this {', '.join(drp_collection_names)}")
 
     @classmethod
     def validate_date_format(cls, date, formats):
@@ -43,11 +54,19 @@ class Validator(object):
 class ParserHelper(object):
     @classmethod
     def find_by_template(cls, feed, keys):
+        # type: (dict, dict) -> dict
         parsed_dict = {}
         for key, value in keys.items():
             if isinstance(value, str):
                 if value.startswith("*"):
                     parsed_dict.update({key: value[1:]})
+                elif value.startswith("#"):   # expect value = "#hash[0]"
+                    v, num = value[1:-1].split("[")
+                    new_val = cls.find_element_by_key(obj=feed, key=v)
+                    if isinstance(new_val, list):
+                        parsed_dict.update({key: new_val[int(num)]})
+                    else:
+                        parsed_dict.update({key: None})
                 else:
                     parsed_dict.update({key: cls.find_element_by_key(obj=feed, key=value)})
             elif isinstance(value, dict):
@@ -103,15 +122,3 @@ class ParserHelper(object):
         else:
             obj[keys[0]] = cls.set_element_by_key(obj.get(keys[0]), keys[1], value)
             return obj
-
-
-class Graph_domain_search(object):
-    @classmethod
-    def reform_response(cls, obj):
-        whois_list = ParserHelper.find_element_by_key(obj, 'whois')
-        for item in whois_list:
-            key_list = ParserHelper.find_element_by_key(item, 'parsed.field')
-            value_list = ParserHelper.find_element_by_key(item, 'parsed.value')
-            item['parsed'] = dict(zip(key_list, value_list))
-        ParserHelper.set_element_by_key(obj, 'whois', whois_list)
-        return obj
