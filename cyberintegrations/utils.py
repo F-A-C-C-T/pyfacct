@@ -50,6 +50,11 @@ class Validator(object):
         elif not isinstance(keys, str):
             raise InputException('Keys should be stored in nested dicts and on the lower level it should be a string.')
 
+    @classmethod
+    def validate_group_collections(cls, collections):
+        if collections in CollectionConsts.GROUP_COLLECTIONS:
+            return True
+
 
 class ParserHelper(object):
     @classmethod

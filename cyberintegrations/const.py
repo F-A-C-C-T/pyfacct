@@ -9,7 +9,7 @@ This module contains consts.
 
 class TechnicalConsts(object):
     library_name = "cyberintegrations"
-    library_version = "0.7.0"
+    library_version = "0.7.1"
 
 
 class RequestConsts(object):
@@ -96,6 +96,8 @@ class CollectionConsts(object):
 
     # TI Collections extra
     ONLY_SEARCH_COLLECTIONS = ["compromised/breached", "compromised/reaper"]
+
+    GROUP_COLLECTIONS = ["compromised/account_group", "compromised/bank_card_group", "attacks/phishing_group"]
 
     DRP_COLLECTIONS_INFO = {
         # DRP Collections
