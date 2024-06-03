@@ -1,362 +1,927 @@
-## **How to use**
-1. First of all you need to initialize Poller with your credentials and set proxy (if you use it), whitelisted by GROUP-IB. Proxy must be in request-like format. Also, you can change the verification of the HTTPS certificate (False by default).
-   ```python
-   from cyberintegrations import TIAPoller
+# CyberIntegrations
 
-   poller = TIAPoller('some@gmail.com', 'API_KEY')
-   poller.set_proxies({"https": 'proxy_protocol' + "://" + 'proxy_user' + ":" + 'proxy_password' + "@" +  'proxy_ip' + ":" + 'proxy_port'})
-   poller.set_verify(True)
-   ```
-	
-2. Then you can set what data you need. Set key with the python dict in the following format: {**key_name_you_want_in_result_dict**: **data_you_want_to_find**}. Parser finds keys recursively in lists/dicts so set **data_you_want_to_find** using dot notation: **firstkey.secondkey**. If you want to add your own data to the results start your data_you_want_to_find with *. For set_keys you also can make a full template to nest data in the way you want.
-	```python
-	poller.set_keys("apt/threat", {'network': {'ips': 'indicators.params.ip'}, 'url': 'indicators.params.url', 'type': '*network'})
-	poller.set_iocs_keys("apt/threat", {"ips": "indicators.params.ip"})
-	```
 
-3. You can use one of this functions: **create_update_generator**, **create_search_generator** - to create a generator, that returns you portions with limited feeds in it. Update generator goes through the feed in ascending order, search generator goes in descending, excluding compromised/breached and compromised/reaper collections. Most important thing: with update generator, you can set seqUpdate.
-	```
-	generator = poller.create_update_generator(collection_name='compromised/account', date_from='2021-01-30', date_to='2021-02-03', query='8.8.8.8', sequpdate=20000000, limit=200)
-	```
+[![Python](https://img.shields.io/badge/python-v3.6.8+-blue?logo=python)](https://python.org/downloads/release/python-368/)
+[![CyberIntegrations](https://img.shields.io/badge/cyberintegrations-v0.6.0+-orange?)](https://github.com/GIB/pytia/releases/tag/0.6.0/)
 
-4. Each portion will be presented in object of **Parser** class. You can get raw data in json format or python dictionary format. For the update generator, you can get the last feed *sequpdate* to save it locally, *count* shows you the number of feeds that still in the queue. For search generator *count* will return total number of feeds in the queue. *Parse_portion* and *get_iocs* methods use your keys and iocs_keys to return transformed data like on the example below, also you can override keys using *keys* parameter in this functions. Also you can use *bulk_parse_portion* function to get multiple parsed dicts from every feed.
-	```
-	for portion in generator:  
-	    parsed_json = portion.parse_portion(as_json=False)  
-	    iocs = portion.get_iocs(as_json=False) 
-	    sequpdate = portion.sequpdate  
-	    count = portion.count  
-	    raw_json = portion.raw_json  
-	    raw_dict = portion.raw_dict
-	    new_parsed_json = portion.bulk_parse_portion(keys_list=[{"ips": "indicators.params.ip"}, {"url": 'indicators.params.url'}], as_json=False)  
-	```
-	For example, if you use keys and Iocs_keys from point 2 for list of feeds:  
-	```python
-	raw_dict = [
-        {
-            'indicators': {
-                'params':
-                    [{'ip': [1, 2], 'url': 'url.com'}, {'ip': [3], 'url': ''}]
-            }
-        },
+**CyberIntegrations** - Python library to communicate with **Group-IB Products** (TI, DRP) via  **API**.
 
-        {
-            'indicators': {
-                'params':
-                    [{'ip': [4, 5], 'url': 'new_url.com'}]
-            }
+
+
+## **Content**
+
+* [Content](#content)
+* [Installation](#installation)
+* [Usage](#usage)
+  * [Initialization](#initialization)
+  * [Collections mapping](#collections-mapping)
+  * [Portions generator](#portions-generator)
+  * [Extra methods](#extra-methods)
+    * [Available collections](#available-collections)
+    * [Find feed by ID](#find-feed-by-id)
+    * [Download file](#download-file)
+  * [Close session](#close-session)
+* [Parsing](#parsing)
+  * [Parse portion method](#parse-portion-method)
+  * [Get IoCs method](#get-iocs-method)
+* [Examples](#examples)
+  * [Full version of program](#full-version-of-program)
+* [Sequence update logic](#sequence-update-logic)
+  * [Sequence update](#sequence-update)
+  * [API response](#api-response)
+  * [Iteration steps](#iteration-steps)
+  * [Stop the iteration](#stop-the-iteration)
+* [Search logic](#search-logic)
+* [Records limits](#records-limits)
+* [Adapter](#adapter)
+  * [Define Config class](#define-config-class)
+  * [Create config files](#create-config-files)
+  * [Create generator](#create-generator)
+  * [Pack the package](#pack-the-package)
+* [Troubleshooting](#troubleshooting)
+  * [401 response code](#401-response-code)
+  * [504 response code or timeout](#504-response-code-or-timeout)
+* [FAQ](#faq)
+
+
+<br>
+
+
+## **Installation**
+
+Lib deps: **pyaml**, **requests**, **urllib3**, **dataclasses**.
+
+CyberIntegrations lib is available on PyPI:
+
+```
+pip install cyberintegrations
+```
+
+Or use a Portal WHL archive. Replace `X.X.X` with current lib version:
+
+```
+pip install ./cycyberintegrations-X.X.X-py3-none-any.whl
+```
+
+
+
+<br>
+
+
+
+## **Usage**
+
+
+### Initialization
+
+Initialize **poller** with your credentials and set proxy (proxy should be in request-like format) if required.
+
+Change SSL Verification using `set_verify()` method. \
+If verify is set to `False`, requests will accept any TLS certificate. \
+If verify is set to `True`, requiring requests to verify the TLS certificate at the remote end. \
+Put a path-like string to the custom TLS certificate if required.
+
+```python
+from cyberintegrations import TIPoller, DRPPoller
+
+poller = TIPoller(username='example@gmail.com', api_key='API_KEY', api_url="API_URL")
+poller.set_proxies({"https": 'proxy_protocol' + "://" + 'proxy_user' + ":" + 'proxy_password' + "@" +  'proxy_ip' + ":" + 'proxy_port'})
+poller.set_verify(True)
+```
+
+### Collections mapping
+
+Method `set_keys()` sets **keys** to search in the selected **collection**. It should be python dict `mapping_keys = {key: value}` where \
+**key** - result name \
+**value** - dot-notation string with searchable keys
+
+```python
+mapping_keys = {"result_name": "searchable_key_1.searchable_key_2"}
+```
+
+Parser finds keys recursively in the API response, using dot-notation in **value**. 
+If you want to add your own data to the results start the **value** with star `*`.
+
+```python
+mapping_keys = {
+	"network": "indicators.params.ip", 
+	"result_name": "*My_Value"
+}
+```
+
+For `set_keys()` or `set_iocs_keys()` methods you can make a full template to get nested data in the way you want.
+
+```python
+mapping_keys = {
+	'network': {
+		'ips': 'indicators.params.ip'
+	}, 
+	'url': 'indicators.params.url', 
+	'type': '*network'
+}
+poller.set_keys(collection_name="apt/threat", keys=mapping_keys)
+poller.set_iocs_keys(collection_name="apt/threat", keys={"ips": "indicators.params.ip"})
+```
+
+### Portions generator
+
+Use the next methods `create_update_generator()`, `create_search_generator()` to create a generator, which return portions of limited feeds. \
+**Update generator** - goes through the feeds in ascending order. Feeds iteration based on `seqUpdate` field. \
+**Search generator** - goes through the feeds in descending order. Feeds iteration based on `resultId` field.
+
+**Note:** Update generator iterates over all collections excluding `compromised/breached` and `compromised/reaper`.
+[Sequence update logic](#sequence-update-logic) is not applied to these collections.
+
+```python
+generator = poller.create_update_generator(
+    collection_name='compromised/account_group', 
+    date_from='2021-01-30', 
+    date_to='2021-02-03', 
+    query='8.8.8.8', 
+    sequpdate=20000000, 
+    limit=200
+)
+```
+
+Each portion (iterable object) presented as `Parser` class object. 
+You can get **raw data** (in json format) or **parsed portion** (python dictionary format), 
+using its methods and attributes. 
+
+```python
+for portion in generator:  
+    parsed_json = portion.parse_portion(as_json=False)  
+    iocs = portion.get_iocs(as_json=False) 
+    sequpdate = portion.sequpdate  
+    count = portion.count  
+    raw_json = portion.raw_json  
+    raw_dict = portion.raw_dict
+    new_parsed_json = portion.bulk_parse_portion(keys_list=[{"ips": "indicators.params.ip"}, {"url": 'indicators.params.url'}], as_json=False)  
+```
+
+Attribute `sequpdate` of the generator iterable object, gives you the last **sequence update number** (`seqUpdate`) 
+of the feed, which you can save locally. 
+
+```python
+sequpdate = portion.sequpdate
+```
+
+Attribute `count` of the generator iterable object, shows you the number of feeds left. This amount still in the queue. 
+For Search generator `count` will return total number of feeds in the queue. 
+
+```python
+count = portion.count
+```
+
+Methods `parse_portion()` and `get_iocs()` of generator iterable objects, use your 
+mapping keys (IoCs keys) to return parsed data.
+You can override mapping keys using `keys` parameter in these functions. 
+
+```python
+parsed_json = portion.parse_portion(as_json=False)  
+iocs = portion.get_iocs(as_json=False, keys=mapping_override_keys) 
+```
+
+Also, you can use `bulk_parse_portion()` method to get multiple parsed dicts from every feed.
+
+```python
+new_parsed_json = portion.bulk_parse_portion(keys_list=[{"ips": "indicators.params.ip"}, {"url": 'indicators.params.url'}], as_json=False)
+```
+
+### Extra methods
+
+You can use some additional functions if required. 
+
+#### Available collections
+
+You should use `get_available_collections()` method before the normal API response if you want to avoid 
+errors trying to access collections that you have no access to.
+
+```python
+collection_list = poller.get_available_collections()  
+seq_update_dict = poller.get_seq_update_dict(date='2020-12-12')  
+compromised_account_sequpdate = seq_update_dict.get('compromised/account')
+```
+
+#### Find feed by ID
+
+You can find specific feed by **id** with this command that also returns **Parser** object. 
+
+```python
+feed = poller.search_feed_by_id(collection_name='compromised/account', feed_id='some_id')  
+parsed_feed = feed.parse_portion()
+```
+
+#### Download file
+
+You can get binary file from threat reports.
+
+```python
+binary_file = poller.search_file_in_threats(collection_name='hi/threat', feed_id='some_id', file_id='some_file_id_inside_feed')
+```
+
+### Close session
+
+Don’t forget to close session in **try…except…finally** block, or use poller with context manager.
+
+```python
+from cyberintegrations import TIPoller
+from cyberintegrations.exception import InputException
+
+...
+
+try:
+   poller = TIPoller('some@gmail.com', 'API_KEY')
+   ...
+except InputException as e:
+   logger.info("Wrong input: {0}".format(e))
+finally:
+   poller.close_session()
+
+...
+
+with TIPoller('some@gmail.com', 'API_KEY') as poller:
+   pass
+```
+
+
+
+<br>
+
+
+
+## Parsing
+
+
+Common example of API response from Collection (received feeds):
+
+```python
+api_response = [
+    {
+        'iocs': {
+            'network': [
+                {
+                    'ip': [1, 2],
+                    'url': 'url.com'
+                },
+                {
+                    'ip': [3],
+                    'url': ''
+                }
+            ]
         }
-    ]
-	```
-	For parse_portion you will receive:
-	```python
-	parsed_json = [
-          {'network': {'ips': [[1, 2], [3]]}, 'url': ['url.com', ''], 'type': 'network'},
+    },
+    {
+        'iocs': {
+            'network': [
+                {
+                    'ip': [4, 5],
+                    'url': 'new_url.com'
+                }
+            ]
+        }
+    }
+]
+```
 
-          {'network': {'ips': [[4, 5]]}, 'url': ['new_url.com'], 'type': 'network'}
-    ]
-	```
-	For get_iocs you will receive:
-	```python
-	iocs = {'ips': [1, 2, 3, 4, 5], 'url': ['url.com', 'new_url.com']}
-	```
-	For bulk_parse_portion you will receive:
-	```python
-	parsed_json = [
-	    [
-	        {'ips': [[1, 2], [3]]}, 
-	        {'url': ['url.com', '']}
-	    ],
-	    [
-	        {'ips': [[4, 5]]}, 
-	        {'url': ['new_url.com']}
-	    ]
-    ]
-	```
-5. You can find specific feed by **id** with this command that also returns **Parser** object. Or you can get binary file from threat reports.
-	```python
-	feed = poller.search_feed_by_id(collection_name='compromised/account', feed_id='some_id')  
-	parsed_feed = feed.parse_portion()  
-	binary_file = poller.search_file_in_threats(collection_name='hi/threat', feed_id='some_id', file_id='some_file_id_inside_feed')
-	```
+### Parse portion method
 
-6. Don’t forget to close session in **try…except…finally** block, or use poller with context manager.
-   ```python
-   from cyberintegrations import TIAPoller
-   from cyberintegrations.exception import InputException
-   
-   ...
-   
-   try:
-       poller = TIAPoller('some@gmail.com', 'API_KEY')
-       ...
-   except InputException as e:
-       log.info("Wrong input: {0}".format(e))
-   finally:
-       poller.close_session()
-   with TIAPoller('some@gmail.com', 'API_KEY') as poller:
-       pass
-   ```
+Your mapping dict for `parse_portion()` or `bulk_parse_portion()` methods:
 
-7. Also you can use some additional functions if you need. You should use get_available_collections because in API response you can get collections that you have no access to.
-	```python
-	collection_list = poller.get_available_collections()  
-	seq_update_dict = poller.get_seq_update_dict(date='2020-12-12')  
-	compromised_account_sequpdate = seq_update_dict.get('compromised/account')
-	```
+```python
+mapping_keys = {
+    'network': {'ips': 'iocs.network.ip'},
+    'url': 'iocs.network.url',
+    'type': '*custom_network'
+}
+```
 
-8. Additional information about API you can find in the TI web interface or in TI Integration Guide.
+Result of `parse_portion()` output:
 
-9. Full version of program:
-   ```python
-   import logging
-   from cyberintegrations import TIAPoller
-   from cyberintegrations.exception import InputException, ConnectionException, ParserException
-   
-   logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-   ...
-   
-   try:
-       poller = TIAPoller(username=username, api_key=api_key)
-       poller.set_proxies({"https": proxy_protocol + "://" + proxy_user + ":" + proxy_password + "@" +  proxy_ip + ":" + proxy_port})
-       poller.set_verify(True)
-       for collection, keys in keys_config.items():
-       poller.set_keys(collection, keys)	
-       for collection, state in update_generator_config.items():
-           if state.get("sequpdate"):
-           generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
-       elif state.get("date_from"):
-           generator = poller.create_update_generator(collection_name=collection, date_from=state.get("date_from"))
-       else:
-           continue
-       for portion in generator:
-           parsed_portion = portion.parse_portion()
-               save_portion(parsed_portion)
-           update_generator_config[collection]["sequpdate"] = portion.sequpdate
-           
-   except InputException as e:
-       logging.exception("Wrong input: {0}".format(e))
-   except ConnectionException as e:
-       logging.exception("Something wrong with connection: {0}".format(e))
-   except ParserException as e:
-       logging.exception("Exception occured during parsing: {0}".format(e))
-   finally:
-       poller.close_session()
-   ```
- 	In this case save_portion is example where you put your function to save data from TI.
-	
-	update_generator_config[collection]["sequpdate"] it is file were you should save seqUpdate for /updated API.
+```python
+parsing_result = [
+    {
+        'network': {'ips': [[1, 2], [3]]},
+        'url': ['url.com', ''],
+        'type': 'custom_network'
+    },
+    {
+        'network': {'ips': [[4, 5]]},
+        'url': ['new_url.com'],
+        'type': 'custom_network'
+    }
+]
+```
 
+Result of `bulk_parse_portion()` output:
 
-
-10. Utils
-
-	1. Using Graph API for WHOIS information
-
-	There are two types of searching:
-
-	Domain:
-	```python
-	from cyberintegrations import TIAPoller
-	poller = TIAPoller('some@gmail.com', 'API_KEY')
-	poller.set_verify(True)
-	print(poller.graph_domain_search('example.com'))
-	```
- 	Example of the response:
-	```python
-	{
-    "createdAt": "2015-12-10T20:40:01+00:00",
-    "id": "google.com",
-    "isSld": true,
-    "name": "google.com",
-    "sld": null,
-    "updatedAt": "2023-01-12T07:30:03+00:00",
-    "whois": [
+```python
+parsing_result = [
+    [
         {
-            "checked_at": "2023-01-12 07:51:03",
-            "level": 1,
-            "parsed": [
+            'network': {'ips': [[1, 2], [3]]}, 
+            'url': ['url.com', ''], 
+            'type': 'custom_network'}
+    ],
+    [
+        {
+            'network': {'ips': [[4, 5]]},
+            'url': ['new_url.com'], 
+            'type': 'custom_network'}
+    ]
+]
+```
+
+### Get IoCs method
+
+Your mapping dict for `get_iocs()` method:
+
+```python
+mapping_keys = {
+    'ips': 'iocs.network.ip',
+    'url': 'iocs.network.url'
+}
+```
+
+Result of `get_iocs()` output:
+
+```python
+parsing_result = {
+    'ips': [1, 2, 3, 4, 5], 
+    'url': ['url.com', 'new_url.com']
+}
+```
+
+
+<br>
+
+
+
+## Examples
+
+### Full version of program
+
+```python
+import logging
+from cyberintegrations import TIPoller
+from cyberintegrations.exception import InputException, ConnectionException, ParserException
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+...
+
+try:
+   poller = TIPoller(username=username, api_key=api_key, , api_url="API_URL")
+   poller.set_proxies({"https": proxy_protocol + "://" + proxy_user + ":" + proxy_password + "@" +  proxy_ip + ":" + proxy_port})
+   poller.set_verify(True)
+   for collection, keys in keys_config.items():
+   poller.set_keys(collection, keys)	
+   for collection, state in update_generator_config.items():
+       if state.get("sequpdate"):
+       generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
+   elif state.get("date_from"):
+       generator = poller.create_update_generator(collection_name=collection, date_from=state.get("date_from"))
+   else:
+       continue
+   for portion in generator:
+       parsed_portion = portion.parse_portion()
+           save_portion(parsed_portion)
+       update_generator_config[collection]["sequpdate"] = portion.sequpdate
+       
+except InputException as e:
+   logging.exception("Wrong input: {0}".format(e))
+except ConnectionException as e:
+   logging.exception("Something wrong with connection: {0}".format(e))
+except ParserException as e:
+   logging.exception("Exception occured during parsing: {0}".format(e))
+finally:
+   poller.close_session()
+```
+
+
+<br>
+
+
+
+## API logic
+
+To iterate over received portions from API response, you should follow one of the next iteration logic: 
+
+- **Result ID iteration** - based on `resultId` parameter, which was retrieved from previous response.
+Uses common collection name endpoint (`apt/threat`) which is added to the base URL >>> `/api/v2/apt/threat`. 
+- **Sequence update iteration** - based on `seqUpdate` parameter, which was retrieved from previous response.
+Uses updated endpoint (`/updated`) after collection name (`/apt/threat`) >>> `/api/v2/apt/threat/updated`.
+
+To search IPs, domains, hashes, emails, etc., you should follow the next logic: 
+
+- **Search logic** - 
+First you should reach `/api/v2/search` endpoint with any `q` parameter >>> `/api/v2/search?q=8.8.8.8`.
+In the output response you will receive collections, which contains the search result (`8.8.8.8`).
+Use _Sequence update iteration_ as a next step to retrieve all events.
+
+
+To get the latest updates on each collection events you should follow the next logic: 
+
+- **Sequence update logic** - 
+first you should reach `/api/v2/sequnce_list` endpoint with `date` and `collection` parameters (optional) >>> `/api/v2/search?date=2022-01-01&collection=apt/threat`.
+In the output response you will receive `seqUpdate` number, which you should use in the next request to collection `/updated` endpoint.
+Use _Sequence update iteration_ as a next step to retrieve all events.
+
+<br>
+
+
+
+### Sequence update logic
+
+Most of the collections at the Threat Intelligence portal has `/updated` endpoint. 
+And this endpoint uses updated logic based on `seqUpdate` key field, which comes from API JSON response.
+
+The `seqUpdate` key – is a time from Epoch converted to a big number (microseconds), using the next formula:
+
+```text
+UTC timestamp * 1000 * 1000. 
+```
+
+_Note:_ Don't rely on this formula. Because of the rising amount of data it could be changed. 
+For that purpose `/api/v2/sequence_list` endpoint was created. 
+Use this endpoint to get required `seqUpdate` number.
+
+#### API response
+
+Each row in our database has its own unique sequence update number. So, we can get all the events one by one. 
+To check it you can explore JSON output and then explore each item in the `"items"` field. 
+So, each item contains a `seqUpdate` field. And the last element’s `seqUpdate` is put to the top level of JSON output. 
+You can use it to get the next portion of feeds. 
+Each collection has its own updated route like `/api/v2/apt/threat/updated`, so we can use the next output as an example.
+
+```json
+{
+    "count": 1761,
+    "items": [
+        {"id": "fake286ca753feed3476649438e4e4488"...},
+        {"id": "fake51d29357b22b80564a1d2f9fc8751"...},
+        {
+            "author": null,
+            "companyId": [],
+            "id": "fake4f16300296d20ef9b909dc0d354fb",
+            ......,
+            "indicators": [
                 {
-                    "field": "DomainName",
-                    "value": [
-                        "google.com"
-                    ]
-                },
-                {
-                    "field": "Status",
-                    "value": [
-                        "clientdeleteprohibited https://icann.org/epp#clientdeleteprohibited",
-                        "clienttransferprohibited https://icann.org/epp#clienttransferprohibited",
-                        "clientupdateprohibited https://icann.org/epp#clientupdateprohibited",
-                        "serverdeleteprohibited https://icann.org/epp#serverdeleteprohibited",
-                        "servertransferprohibited https://icann.org/epp#servertransferprohibited",
-                        "serverupdateprohibited https://icann.org/epp#serverupdateprohibited"
-                    ]
-                },
-                {
-                    "field": "Registrar",
-                    "value": [
-                        "markmonitor inc"
-                    ]
-                },
-                {
-                    "field": "CreationDate",
-                    "value": [
-                        "1997-09-15 04:00:00"
-                    ]
-                },
-                {
-                    "field": "ExpirationDate",
-                    "value": [
-                        "2028-09-14 04:00:00"
-                    ]
-                },
-                {
-                    "field": "UpdatedDate",
-                    "value": [
-                        "2019-09-09 15:39:04"
-                    ]
-                },
-                {
-                    "field": "Phone",
-                    "value": [
-                        "12086851750"
-                    ]
-                },
-                {
-                    "field": "NameServers",
-                    "value": [
-                        "ns1.google.com",
-                        "ns2.google.com",
-                        "ns3.google.com",
-                        "ns4.google.com"
-                    ]
-                },
-                {
-                    "field": "WhoisServer",
-                    "value": [
-                        "whois.markmonitor.com"
-                    ]
+                    "dateFirstSeen": null,
+                    "dateLastSeen": null,
+                    "deleted": false,
+                    "description": null,
+                    "domain": "fake-fakesop.net",
+                    "id": "fakebe483bb82759fbee7038235e0f52d0",
+                    .....
                 }
             ],
-            "response": "Domain Name: GOOGLE.COM\r\n   Registry Domain ID: 2138514_DOMAIN_COM-VRSN\r\n   Registrar WHOIS Server: whois.markmonitor.com\r\n   Registrar URL: http://www.markmonitor.com\r\n   Updated Date: 2019-09-09T15:39:04Z\r\n   Creation Date: 1997-09-15T04:00:00Z\r\n   Registry Expiry Date: 2028-09-14T04:00:00Z\r\n   Registrar: MarkMonitor Inc.\r\n   Registrar IANA ID: 292\r\n   Registrar Abuse Contact Email: abusecomplaints@markmonitor.com\r\n   Registrar Abuse Contact Phone: +1.2086851750\r\n   Domain Status: clientDeleteProhibited https://icann.org/epp#clientDeleteProhibited\r\n   Domain Status: clientTransferProhibited https://icann.org/epp#clientTransferProhibited\r\n   Domain Status: clientUpdateProhibited https://icann.org/epp#clientUpdateProhibited\r\n   Domain Status: serverDeleteProhibited https://icann.org/epp#serverDeleteProhibited\r\n   Domain Status: serverTransferProhibited https://icann.org/epp#serverTransferProhibited\r\n   Domain Status: serverUpdateProhibited https://icann.org/epp#serverUpdateProhibited\r\n   Name Server: NS1.GOOGLE.COM\r\n   Name Server: NS2.GOOGLE.COM\r\n   Name Server: NS3.GOOGLE.COM\r\n   Name Server: NS4.GOOGLE.COM\r\n   DNSSEC: unsigned\r\n   URL of the ICANN Whois Inaccuracy Complaint Form: https://www.icann.org/wicf/",
-            "server": "whois.crsnic.net"
-        }]
-	}
-	```
+            "indicatorsIds": [
+                "fakebe483bb82759fbee7038235e0f52d0"
+            ],
+            "isPublished": true,
+            "isTailored": false,
+            "labels": [],
+            "langs": [
+                "en"
+            ],
+            "malwareList": [],
+            ......,
+            "seqUpdate": 16172928022293
+        },
+    ],
+    "seqUpdate": 16172928022293
+}
+```
 
-	IP's:
-	```python
-	from cyberintegrations import TIAPoller
-	poller = TIAPoller('some@gmail.com', 'API_KEY')
-	poller.set_verify(True)
-	print(poller.graph_ip_search('8.8.8.8'))
-	```
- 
- 	Example of the response:
-	```python
-	{
-    "createdAt": null,
-    "created_at": null,
-    "end": "8.8.8.255",
-    "id": "8.8.8.0_8.8.8.255",
-    "provider": "arin",
-    "start": "8.8.8.0",
-    "updatedAt": null,
-    "updated_at": null,
-    "whoisSummary": {
-        "asn": "AS15169",
-        "country": "US",
-        "descr": "Google",
-        "isp": "Google",
-        "netname": "LVLT-GOGL-8-8-8",
-        "person": null,
-        "phone": "+1-650-253-0000"
- 	    }
-	}
- 	```
-	2. Global search
+#### Iteration steps
 
-	Global search across all collections with provided `query`, returns dict with information about collection, count, etc.
-	```python
-	from cyberintegrations import TIAPoller
-	poller = TIAPoller('some@gmail.com', 'API_KEY')
-	poller.set_verify(True)
-	print(poller.global_search('8.8.8.8'))
-    ```
- 	Example of the response:
-	```python
-	[
+To iterate over `/api/v2/apt/threat/updated` endpoint data, you need to collect this 
+field number (`"seqUpdate": 16172928022293`) right at the top level of the JSON response, 
+received from previous request or from `/sequnce_list` endpoint.
+
+```console
+curl -X 'GET' 'https://<base URL>/api/v2/sequnce_list'
+```
+
+Add gathered `seqUpdate` in the next request, using endpoint params.
+
+```console
+curl -X 'GET' 'https://<base URL>/api/v2/apt/threat/updated?seqUpdate=16172928022293'
+```
+
+In the received JSON output check the `"count": 1751`. -> \
+Gather `seqUpdate` from last feed or at top level -> \
+Put it in next request -> 
+
+```console
+curl -X 'GET' 'https://<base URL>/api/v2/apt/threat/updated?seqUpdate=16172928536227'
+```
+
+In the received JSON output, check the `"count": 1741` -> \
+Gather `seqUpdate` from last feed or at top level -> \
+Repeat till the end.
+
+#### Stop the iteration
+
+The "stop word" in that logic is items `"count"` or `"items"` list length. 
+For the collection `apt/threat` in above example, the `limit` is set to 10 by default, 
+the other collections usually have 100 `limit`. The limit depends on the amount of data to not overload the JSON output.
+For example, usually you receive a portion of 100 feeds (not 10) for the first iteration. -> 
+Then could be a portion of 23 feeds -> Then a portion of 0 feeds -> The end.
+
+<br>
+
+
+
+### Search logic
+
+Search logic is used to find attribution to the search value in Threat Intelligence database.
+
+#### Global search
+
+To find events related to IP, domain, hash, email, etc., you should send request to the `/api/v2/search` endpoint 
+with any `q` parameter (`/api/v2/search?q=8.8.8.8`). 
+It will return a list of collections, which contains this searchable parameter. 
+As a next step we need to use _Sequence update iteration_ over all items in each collection.
+You can specify the searchable type keyword to avoid side results by setting `q` parameter like `/api/v2/search?q=ip:8.8.8.8`.
+The same can be done for domain, email, hash, etc (`/api/v2/search?q=domain:google.com`, `/api/v2/search?q=email:example@gmail.com`).
+
+
+```json
+[
     {
-        "apiPath": "compromised/account",
-        "count": 3391,
-        "detailedLinks": [],
-        "label": "Compromise & leaks :: Accounts",
-        "link": null,
-        "time": 0.0
+        "apiPath": "suspicious_ip/open_proxy",
+        "label": "Suspicious IP :: Open Proxy",
+        "link": "https://tap.group-ib.com/api/v2/suspicious_ip/open_proxy?q=ip:8.8.8.8",
+        "count": 14,
+        "time": 0.304644684,
+        "detailedLinks": null
     },
     {
-        "apiPath": "attacks/deface",
-        "count": 2,
-        "detailedLinks": [],
-        "label": "Attack :: Deface",
-        "link": "https://tap.group-ib.com/attacks/deface?searchValue=8.8.8.8&q=8.8.8.8",
-        "time": 0.0
+        "apiPath": "attacks/ddos",
+        "label": "Attack :: DDoS",
+        "link": "https://tap.group-ib.com/api/v2/attacks/ddos?q=ip:8.8.8.8",
+        "count": 1490,
+        "time": 0.389418291,
+        "detailedLinks": null
     },
+    {"apiPath": "attacks/deface"...},
+    {"apiPath": "malware/config"...},
+    {"apiPath": "suspicious_ip/scanner"...}
+]
+
+```
+
+
+#### Iteration steps
+
+On the first search step we receive information that collection `attacks/ddos` contains 1490 items (`"count": 1490`). 
+Let's extract all of them. First we need to send request to this collection with the `q` parameter (`?q=ip:8.8.8.8`).
+Then we retrieve `"seqUpdate"` field right at the top level of the JSON response and use it in the next request (`"seqUpdate": 1673373011294`).
+
+```json
+{
+  "count": 1490,
+  "items": [
     {
-        "apiPath": "attacks/phishing",
-        "count": 1781,
-        "detailedLinks": [],
-        "label": "Attack :: Phishing",
-        "link": "https://tap.group-ib.com/attacks/phishing?searchValue=8.8.8.8&q=8.8.8.8",
-        "time": 0.0
+      "body": null,
+      "cnc": {"cnc": "http://ex-ex.net/drv/"...},
+      "company": null,
+      "companyId": null,
+      "dateBegin": null,
+      "dateEnd": null,
+      "dateReg": "2017-08-16T00:00:00+00:00",
+      "evaluation": {},
+      "favouriteForCompanies": [],
+      "headers": [],
+      "hideForCompanies": [],
+      "id": "examplec58903baddc84b8c51eaef1f904374025d",
+      "isFavourite": false,
+      ...
+    }
+  ],
+  ...,
+  "seqUpdate": 1673373011294
+}
+```
+
+So the next request should look like this `/api/v2/attacks/ddos/updated?q=ip:8.8.8.8&seqUpdate=1673373011294`.
+We can also set the `limit` parameter in the requests, like `limit=500`.
+Explore the example below.
+
+```console
+curl -X 'GET' 'https://<base URL>/api/v2/search?q=ip:8.8.8.8'
+```
+
+Add gathered `seqUpdate` in the next request, using endpoint params.
+
+```console
+curl -X 'GET' 'https://<base URL>/api/v2/apt/threat/updated?seqUpdate=1673373011294'
+```
+
+In the received JSON output check the `"count": 1390`. -> \
+Gather `seqUpdate` from last feed or at top level -> \
+Put it in next request -> 
+
+```console
+curl -X 'GET' 'https://<base URL>/api/v2/apt/threat/updated?seqUpdate=1673375930599'
+```
+
+In the received JSON output, check the `"count": 1290` -> \
+Gather `seqUpdate` from last feed or at top level -> \
+Repeat till the end.
+
+#### Stop the iteration
+
+The "stop word" in that logic is items `"count"` or `"items"` list length. 
+For the collection `attacks/ddos` in above example, the `limit` is set to 100 by default, 
+the other collections it may differ. The limit depends on the amount of data to not overload the JSON output.
+For example, usually you receive a portion of 100 feeds for the first iteration. -> 
+Then could be a portion of 23 feeds -> Then a portion of 0 feeds -> The end.
+
+
+
+<br>
+
+
+
+## Records limits
+
+Default limit is 100 records per request. Due to different size of feeds there are different limits for getting data.
+
+To change record limit in response add param `limit=500` to the request. 
+All limits for different collections can be found at Portal documentation.
+
+```console
+curl -X 'GET' 'https://<base URL>/api/v2/apt/threat/updated?limit=500&seqUpdate=16172928022293'
+```
+
+<br>
+
+
+
+## **Adapter**
+
+
+### **Define Config class**
+
+Next variables define User-Agent mask with product metadata information:
+
+```
+PRODUCT_TYPE
+PRODUCT_NAME
+PRODUCT_VERSION
+INTEGRATION
+INTEGRATION_VERSION
+```
+
+Config variables responsible for two config files. 
+```CONFIG_YML``` defines each collection configuration. 
+```CONFIG_JSON``` defines mapping configuration to extract necessary fields.
+
+```
+CONFIG_YML
+CONFIG_JSON
+```
+
+Other variables field names are not necessary. As an example explore next python code:
+
+```python
+import os
+
+from cyberintegrations import GIBAdapter, Logger
+from cyberintegrations.utils import FileHandler, ProxyConfigurator
+
+from somewhere import SIEMCommunicator
+
+
+class Config(object):
+    # Set up product metadata
+    PRODUCT_TYPE = "SCRIPT"
+    PRODUCT_NAME = "FireWall"
+    PRODUCT_VERSION = "unknown"
+    INTEGRATION = "ADCB_FireWall"
+    INTEGRATION_VERSION = "1.0.0"
+
+    # Set project root dir
+    ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
+
+    # Set basedirs
+    DOCS_DIR = os.path.join(ROOT_DIR, "docs")
+    LOGS_DIR = os.path.join(ROOT_DIR, "log")
+
+    # Set up logging
+    ROOT_LOGGING_LEVEL = 'DEBUG'
+    LOGGING_FORMAT = '%(asctime)s [%(name)s: %(filename)s.%(lineno)s] [%(levelname)s] %(message)s'
+
+    # Set up logs files
+    LOGS_SESSION_FILENAME = 'session_ti.log'
+    LOGS_INFO_FILENAME = 'info_ti.log'
+    LOGS_WARNING_FILENAME = 'warning_ti.log'
+
+    # Set up config filename
+    _config_name_yml = 'endpoints_config.yaml'
+    _config_name_json = 'mapping.json'
+
+    # Set up configs
+    CONFIG_YML = os.path.join(DOCS_DIR, "configs", _config_name_yml)
+    CONFIG_JSON = os.path.join(DOCS_DIR, "configs", _config_name_json)
+
+
+# Root logger initialization
+Logger.init_root_logger(
+    logs_dir=Config.LOGS_DIR,
+    logging_format=Config.LOGGING_FORMAT,
+    logging_level=Config.ROOT_LOGGING_LEVEL,
+    session_filename=Config.LOGS_SESSION_FILENAME,
+    info_filename=Config.LOGS_INFO_FILENAME,
+    warning_filename=Config.LOGS_WARNING_FILENAME
+)
+
+# Logger instance to use
+logger = Logger.init_logger(name=__name__)
+
+cfg = Config
+fh = FileHandler()
+pc = ProxyConfigurator()
+
+# Define configs
+mapping_config = fh.read_json_config(config=Config.CONFIG_JSON)
+endpoints_config = fh.read_yaml_config(config=Config.CONFIG_YML)
+
+# Define creds
+gib_creds = {
+    "creds": {
+        **endpoints_config.get("ti_client")
+    }
+}
+
+some_siem_creds = {
+    **endpoints_config.get("some_siem_creds")
+}
+
+proxy = {
+    **endpoints_config.get("proxy")
+}
+
+# Proxy initialization
+proxies = pc.get_proxies(**proxy)
+
+# Adapter API initialization
+gib_adapter = GIBAdapter(
+    gib_creds_dict=gib_creds,
+    proxies=proxies,
+    config_obj=cfg
+)
+
+# Some SIEM initialization
+siem_communicator = SIEMCommunicator(**some_siem_creds)
+```
+
+
+### **Create config files**
+
+As an example to correlate with Config class setting docs/config folder is used.
+
+docs/config/```mapping.json```
+
+```json
+{
+    "apt/threat": {
+        "ip": "indicators.params.ipv4",
+        "md5": "indicators.params.hashes.md5",
+        "sha1": "indicators.params.hashes.sha1",
+        "sha256": "indicators.params.hashes.sha256",
+        "url": "indicators.params.url",
+        "domain": "indicators.params.domain"
     },
-    {
-        "apiPath": "hi/threat",
-        "count": 1,
-        "detailedLinks": [],
-        "label": "Threats & Actors :: Cybercriminals :: Report",
-        "link": "https://tap.group-ib.com/ta/last-threats?type=hi?searchValue=8.8.8.8&q=8.8.8.8",
-        "time": 0.0
-    },
-    {
-        "apiPath": "apt/threat",
-        "count": 12,
-        "detailedLinks": [],
-        "label": "Threats & Actors :: Nation-State :: Report",
-        "link": "https://tap.group-ib.com/ta/last-threats?type=apt?searchValue=8.8.8.8&q=8.8.8.8",
-        "time": 0.0
-    },
-    {
-        "apiPath": "apt/threat_actor",
-        "count": 4,
-        "detailedLinks": [],
-        "label": "Threats & Actors :: Nation-State",
-        "link": "https://tap.group-ib.com/common/threat_actor?searchValue=8.8.8.8&q=8.8.8.8",
-        "time": 0.0
-    },
-    {
-        "apiPath": "osi/vulnerability",
-        "count": 10,
-        "detailedLinks": [],
-        "label": "Malware :: Vulnerabilities",
-        "link": "https://tap.group-ib.com/osi/vulnerabilities?searchValue=8.8.8.8&q=8.8.8.8",
-        "time": 0.0
-    },
-    {
-        "apiPath": "osi/public_leak",
-        "count": 9227,
-        "detailedLinks": [],
-        "label": "Compromise & leaks :: Public Leaks",
-        "link": "https://tap.group-ib.com/osi/public_leak?searchValue=8.8.8.8&q=8.8.8.8",
-        "time": 0.0
-    },
-    {
-        "apiPath": "malware/polygon_task",
-        "count": 3167,
-        "detailedLinks": [],
-        "label": "Malware :: Malware Detonation",
-        "link": null,
-        "time": 0.0
-    }]	
-	```
+    "attacks/ddos": {
+        "target_ip": "target.ipv4.ip",
+        "ip": "cnc.ipv4.ip"
+    }
+}
+```
+
+docs/config/```endpoints_config.yaml```
+
+```yaml
+collections:
+  apt/threat:
+    default_date: null
+    description: A collection of Indicators and MITRE ATT&CK matrix. It contains HASH
+      sums of malicious files that were generated by hackers, IP addresses, domains,
+      CVE and the group's activities, motives, and goals to understand what tools
+      and tactics they use according to the MITRE ATT&CK matrix.
+    dtl: null
+    enable: false
+    seqUpdate: null
+  attacks/ddos:
+    default_date: null
+    description: An attack that creates a load on the server and is executed simultaneously
+      from a large number of computers (often a network of infected zombie computers
+      is used) in order to create an artificial increase in requests to a resource
+      and thereby disable it.
+    dtl: null
+    enable: false
+    seqUpdate: null
+some_siem_creds:
+  base_ip: null
+  password: null
+  username: null
+proxy:
+  proxy_ip: null
+  proxy_password: null
+  proxy_port: null
+  proxy_protocol: null
+  proxy_username: null
+ti_client:
+  api_key: null
+  username: null
+
+```
+
+### **Create generator**
+
+As a last step create generator and iterate other portions. Extract feeds from each portion and manipulate with them for your needs.
+
+```python
+# Create generators based on configuration files
+generators_list = gib_adapter.create_generators(sleep_amount=1)
+
+# Iterate other
+for collection, generator in generators_list:
+    time.sleep(3)
+    if not generator:
+        logger.warning("No generator for collection: {}".format(collection))
+        continue
+
+    endpoints_config = fh.read_yaml_config(config=Config.CONFIG_YML)
+    if not endpoints_config["collections"][collection]["enable"]:
+        logger.warning("User disable collection: {}. Aborting!".format(collection))
+        continue
+
+    try:
+        for portion in generator:
+            # scan_blocks = portion.parse_portion(as_json=False)
+            keys = mapping_config.get(collection, {})
+            data = portion.get_iocs(keys)
+            # data = portion.get_iocs(
+            #     keys,
+            #     filter_map=("objective", ["Card harvest", "Login harvest", "Malware drop", "PII harvest"])
+            # )
+
+            tag_name = collection.replace("/", "_")
+            allowed_list = ["ip", "url"]
+
+            # ADD ANY SIEM COMMUNICATOR LOGIC HERE
+
+            prepared_data = {"seqUpdate": portion.sequpdate}
+            fh.save_collection_info(
+                config=Config.CONFIG_YML,
+                collection=collection,
+                **prepared_data
+            )
+    except SomeSIEMapiError as e:
+        logger.exception("Error occurred during connection to SomeSIEM")
+    except Exception as e:
+        logger.exception("Generator is empty. Raising notification.")
+        time.sleep(60)
+        exit(0)
+```
+
+
+### **Pack the package**
+
+```
+python setup.py sdist
+python setup.py bdist_wheel
+```
+
+```
+pip install wheel
+python setup.py build
+python setup.py install
+python setup.py develop
+```
+
+
+## Troubleshooting
+
+### 401 response code
+
+This code is return if you sent no credentials. Make sure that you send Authorization header and that you use Basic auth.
+403 response code
+
+There are several possible reasons of it:
+
+- IP limitation. Make sure that you request from allowed IP address. You can find above how to set up your private IP list.
+- API KEY issue. Make sure that your API KEY is active and valid. Try regeneration it as it was described above.
+- No access to the feed. make sure that you have access to the requested feed. You can find available feed on Profile page -> Security and Access
+
+### 504 response code or timeout
+
+Try setting a smaller limit when requesting the API.
+
+
+## FAQ
+
+Have a question? Ask in the SD Ticket on our Portal
