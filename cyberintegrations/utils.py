@@ -50,6 +50,11 @@ class Validator(object):
         elif not isinstance(keys, str):
             raise InputException('Keys should be stored in nested dicts and on the lower level it should be a string.')
 
+    @classmethod
+    def validate_group_collections(cls, collections):
+        if collections in CollectionConsts.GROUP_COLLECTIONS:
+            return True
+
 
 class ParserHelper(object):
     @classmethod
@@ -63,14 +68,29 @@ class ParserHelper(object):
                 elif value.startswith("#"):   # expect value = "#hash[0]"
                     v, num = value[1:-1].split("[")
                     new_val = cls.find_element_by_key(obj=feed, key=v)
-                    if isinstance(new_val, list):
+                    if isinstance(new_val, list) and len(new_val) > int(num):
                         parsed_dict.update({key: new_val[int(num)]})
                     else:
                         parsed_dict.update({key: None})
                 else:
                     parsed_dict.update({key: cls.find_element_by_key(obj=feed, key=value)})
             elif isinstance(value, dict):
-                parsed_dict.update({key: cls.find_by_template(feed, value)})
+                if value.get("__nested_dot_path_to_list"):
+                    list_obj = cls.find_element_by_key(obj=feed, key=value.get("__nested_dot_path_to_list"))
+                    value.pop("__nested_dot_path_to_list", None)
+                    if isinstance(list_obj, list):
+                        parsed_dict.update({
+                            key: [cls.find_by_template(nested_feed, value) for nested_feed in list_obj]
+                        })
+                elif value.get("__concatenate"):
+                    concat_values = value.get("__concatenate", {})
+                    parsed_dict.update({
+                        key:
+                            str(concat_values.get("static")) +
+                            str(cls.find_element_by_key(obj=feed, key=concat_values.get("dynamic")))
+                    })
+                else:
+                    parsed_dict.update({key: cls.find_by_template(feed, value)})
 
         return parsed_dict
 

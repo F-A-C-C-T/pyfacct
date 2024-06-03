@@ -69,6 +69,7 @@ class GeneratorInfo(object):
 @dataclass(order=True)
 class TIGeneratorInfo(GeneratorInfo):
     apply_hunting_rules: Union[int, str] = None
+    parse_events: Optional[bool] = None
 
     def _validate_default_fields(self, collections_info=CollectionConsts.TI_COLLECTIONS_INFO):
         super()._validate_default_fields(collections_info=CollectionConsts.TI_COLLECTIONS_INFO)
@@ -320,7 +321,7 @@ class Poller(object):
             library=_merge(TechnicalConsts.library_name, TechnicalConsts.library_version)
         )
 
-    def set_keys(self, collection_name, keys, ignore_validation=None):
+    def set_keys(self, collection_name, keys, ignore_validation=False):
         # type: (str, Dict[str, str], Optional[bool]) -> None
         """
         Sets `Keys` to search in the selected collection. It should be python dict where
@@ -611,10 +612,11 @@ class TIPoller(Poller):
             sequpdate=None,
             limit=None,
             apply_hunting_rules=None,
-            ignore_validation=None
+            ignore_validation=None,
+            parse_events=False
     ):
 
-        # type: (str, Optional[str], Optional[str], Optional[str], Union[int, str], Union[int, str], Union[int, str], Optional[bool]) -> Generator[Parser, Any, None]
+        # type: (str, Optional[str], Optional[str], Optional[str], Union[int, str], Union[int, str], Union[int, str], Optional[bool], Optional[bool]) -> Generator[Parser, Any, None]
         session_type = "update"
         generator_info = TIGeneratorInfo(
             collection_name=collection_name,
@@ -626,7 +628,8 @@ class TIPoller(Poller):
             apply_hunting_rules=apply_hunting_rules,
             keys=self._keys.get(collection_name),
             iocs_keys=self._iocs_keys.get(collection_name),
-            ignore_validation=ignore_validation
+            ignore_validation=ignore_validation,
+            parse_events=parse_events
         )
         generator_class = TIUpdateFeedGenerator(self, generator_info, sequpdate=sequpdate)
         return generator_class.create_generator()
@@ -639,9 +642,10 @@ class TIPoller(Poller):
             query=None,
             limit=None,
             apply_hunting_rules=None,
-            ignore_validation=None
+            ignore_validation=None,
+            parse_events=False
     ):
-        # type: (str, Optional[str], Optional[str], Optional[str], Union[int, str], Union[int, str], Optional[bool]) -> Generator
+        # type: (str, Optional[str], Optional[str], Optional[str], Union[int, str], Union[int, str], Optional[bool], Optional[bool]) -> Generator
 
         """
         Creates generator of :class:`Parser` class objects for the search session
@@ -670,7 +674,8 @@ class TIPoller(Poller):
             apply_hunting_rules=apply_hunting_rules,
             keys=self._keys.get(collection_name),
             iocs_keys=self._iocs_keys.get(collection_name),
-            ignore_validation=ignore_validation
+            ignore_validation=ignore_validation,
+            parse_events=parse_events
         )
         generator_class = TISearchFeedGenerator(self, generator_info)
         return generator_class.create_generator()
@@ -874,6 +879,41 @@ class TIUpdateFeedGenerator(FeedGenerator):
         self.sequpdate = sequpdate
         self.endpoint = f"{self.generator_info.collection_name}/updated"
 
+    def create_generator(self):
+        # type: () -> Generator[Parser, Any, None]
+        logger.info(f"Starting {self.generator_info.session_type} "
+                    f"session for {self.generator_info.collection_name} collection")
+
+        while True:
+            self.i += 1
+            logger.info(f"Loading {self.i} portion")
+            chunk = self.poller_object.send_request(endpoint=self.endpoint, params=self._get_params())
+            if self.generator_info.parse_events and Validator.validate_group_collections(self.generator_info.collection_name):
+                expanded_data = {}
+                expanded_data["count"] = chunk.get("count")
+                expanded_data["seqUpdate"] = chunk.get("seqUpdate")
+                expanded_data["items"] = []
+
+                for item in chunk["items"]:
+                    events = item.get("events", [])
+                    if events:
+                        for event in events:
+                            expanded_event = dict(item)
+                            expanded_event["events"] = [event]
+                            expanded_data["items"].append(expanded_event)
+                    else:
+                        expanded_data["items"].append(item)
+                chunk = expanded_data
+            portion = Parser(chunk, self.generator_info.keys, self.generator_info.iocs_keys)
+            logger.info(f"{self.i} portion was loaded")
+            if portion.portion_size == 0:
+                logger.info(f"{self.generator_info.session_type} session for {self.generator_info.collection_name} "
+                            f"collection was finished, loaded {self.total_amount} feeds")
+                break
+            self.total_amount += portion.portion_size
+            self._reset_params(portion)
+            yield portion
+
     def _get_params(self):
         return {
             **super()._get_params(),
@@ -891,6 +931,41 @@ class TISearchFeedGenerator(FeedGenerator):
         # type: (Union[TIPoller], Union[TIGeneratorInfo]) -> None
         super().__init__(poller_object, generator_info)
         self.result_id = None
+
+    def create_generator(self):
+        # type: () -> Generator[Parser, Any, None]
+        logger.info(f"Starting {self.generator_info.session_type} "
+                    f"session for {self.generator_info.collection_name} collection")
+
+        while True:
+            self.i += 1
+            logger.info(f"Loading {self.i} portion")
+            chunk = self.poller_object.send_request(endpoint=self.endpoint, params=self._get_params())
+            if self.generator_info.parse_events and Validator.validate_group_collections(self.generator_info.collection_name):
+                expanded_data = {}
+                expanded_data["count"] = chunk.get("count")
+                expanded_data["resultId"] = chunk.get("resultId")
+                expanded_data["items"] = []
+
+                for item in chunk["items"]:
+                    events = item.get("events", [])
+                    if events:
+                        for event in events:
+                            expanded_event = dict(item)
+                            expanded_event["events"] = [event]
+                            expanded_data["items"].append(expanded_event)
+                    else:
+                        expanded_data["items"].append(item)
+                chunk = expanded_data
+            portion = Parser(chunk, self.generator_info.keys, self.generator_info.iocs_keys)
+            logger.info(f"{self.i} portion was loaded")
+            if portion.portion_size == 0:
+                logger.info(f"{self.generator_info.session_type} session for {self.generator_info.collection_name} "
+                            f"collection was finished, loaded {self.total_amount} feeds")
+                break
+            self.total_amount += portion.portion_size
+            self._reset_params(portion)
+            yield portion
 
     def _get_params(self):
         return {**super()._get_params(), "resultId": self.result_id}
