@@ -2,7 +2,6 @@
 
 
 [![Python](https://img.shields.io/badge/python-v3.6.8+-blue?logo=python)](https://python.org/downloads/release/python-368/)
-[![CyberIntegrations](https://img.shields.io/badge/cyberintegrations-v0.6.0+-orange?)](https://github.com/GIB/pytia/releases/tag/0.6.0/)
 
 **CyberIntegrations** - Python library to communicate with **Group-IB Products** (TI, DRP) via  **API**.
 
@@ -60,7 +59,7 @@ pip install cyberintegrations
 Or use a Portal WHL archive. Replace `X.X.X` with current lib version:
 
 ```
-pip install ./cycyberintegrations-X.X.X-py3-none-any.whl
+pip install ./cyberintegrations-X.X.X-py3-none-any.whl
 ```
 
 
@@ -85,7 +84,13 @@ Put a path-like string to the custom TLS certificate if required.
 from cyberintegrations import TIPoller, DRPPoller
 
 poller = TIPoller(username='example@gmail.com', api_key='API_KEY', api_url="API_URL")
-poller.set_proxies({"https": 'proxy_protocol' + "://" + 'proxy_user' + ":" + 'proxy_password' + "@" +  'proxy_ip' + ":" + 'proxy_port'})
+poller.set_proxies(
+                proxy_protocol=PROXY_PROTOCOL,
+                proxy_port=PROXY_PORT,
+                proxy_ip=PROXY_ADDRESS,
+                proxy_password=PROXY_PASSWORD,
+                proxy_username=PROXY_USERNAME
+            )
 poller.set_verify(True)
 ```
 
@@ -230,17 +235,12 @@ from cyberintegrations.exception import InputException
 ...
 
 try:
-   poller = TIPoller('some@gmail.com', 'API_KEY')
+    poller = TIPoller(username='example@gmail.com', api_key='API_KEY', api_url="API_URL")
    ...
 except InputException as e:
    logger.info("Wrong input: {0}".format(e))
 finally:
    poller.close_session()
-
-...
-
-with TIPoller('some@gmail.com', 'API_KEY') as poller:
-   pass
 ```
 
 
@@ -369,16 +369,21 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 ...
 
 try:
-   poller = TIPoller(username=username, api_key=api_key, , api_url="API_URL")
-   poller.set_proxies({"https": proxy_protocol + "://" + proxy_user + ":" + proxy_password + "@" +  proxy_ip + ":" + proxy_port})
+   poller = TIPoller(username=username, api_key=api_key, api_url=api_url)
+   poller.set_proxies(proxy_protocol=PROXY_PROTOCOL,
+                      proxy_port=PROXY_PORT,
+                      proxy_ip=PROXY_ADDRESS,
+                      proxy_password=PROXY_PASSWORD,
+                      proxy_username=PROXY_USERNAME)
    poller.set_verify(True)
    for collection, keys in keys_config.items():
    poller.set_keys(collection, keys)	
    for collection, state in update_generator_config.items():
-       if state.get("sequpdate"):
-       generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
-   elif state.get("date_from"):
-       generator = poller.create_update_generator(collection_name=collection, date_from=state.get("date_from"))
+        if state.get("sequpdate"):
+        generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
+    elif state.get("date_from"):
+        sequpdate = poller.get_seq_update_dict(date=state.get('date_from'), collection_name=collection).get(collection)
+        generator = poller.create_update_generator(collection_name=collection, sequpdate=sequpdate)
    else:
        continue
    for portion in generator:
@@ -551,7 +556,7 @@ The same can be done for domain, email, hash, etc (`/api/v2/search?q=domain:goog
     {
         "apiPath": "suspicious_ip/open_proxy",
         "label": "Suspicious IP :: Open Proxy",
-        "link": "https://tap.group-ib.com/api/v2/suspicious_ip/open_proxy?q=ip:8.8.8.8",
+        "link": "https://<base-url>/api/v2/suspicious_ip/open_proxy?q=ip:8.8.8.8",
         "count": 14,
         "time": 0.304644684,
         "detailedLinks": null
@@ -559,7 +564,7 @@ The same can be done for domain, email, hash, etc (`/api/v2/search?q=domain:goog
     {
         "apiPath": "attacks/ddos",
         "label": "Attack :: DDoS",
-        "link": "https://tap.group-ib.com/api/v2/attacks/ddos?q=ip:8.8.8.8",
+        "link": "https://<base-url>/api/v2/attacks/ddos?q=ip:8.8.8.8",
         "count": 1490,
         "time": 0.389418291,
         "detailedLinks": null
@@ -658,252 +663,6 @@ curl -X 'GET' 'https://<base URL>/api/v2/apt/threat/updated?limit=500&seqUpdate=
 <br>
 
 
-
-## **Adapter**
-
-
-### **Define Config class**
-
-Next variables define User-Agent mask with product metadata information:
-
-```
-PRODUCT_TYPE
-PRODUCT_NAME
-PRODUCT_VERSION
-INTEGRATION
-INTEGRATION_VERSION
-```
-
-Config variables responsible for two config files. 
-```CONFIG_YML``` defines each collection configuration. 
-```CONFIG_JSON``` defines mapping configuration to extract necessary fields.
-
-```
-CONFIG_YML
-CONFIG_JSON
-```
-
-Other variables field names are not necessary. As an example explore next python code:
-
-```python
-import os
-
-from cyberintegrations import GIBAdapter, Logger
-from cyberintegrations.utils import FileHandler, ProxyConfigurator
-
-from somewhere import SIEMCommunicator
-
-
-class Config(object):
-    # Set up product metadata
-    PRODUCT_TYPE = "SCRIPT"
-    PRODUCT_NAME = "FireWall"
-    PRODUCT_VERSION = "unknown"
-    INTEGRATION = "ADCB_FireWall"
-    INTEGRATION_VERSION = "1.0.0"
-
-    # Set project root dir
-    ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
-
-    # Set basedirs
-    DOCS_DIR = os.path.join(ROOT_DIR, "docs")
-    LOGS_DIR = os.path.join(ROOT_DIR, "log")
-
-    # Set up logging
-    ROOT_LOGGING_LEVEL = 'DEBUG'
-    LOGGING_FORMAT = '%(asctime)s [%(name)s: %(filename)s.%(lineno)s] [%(levelname)s] %(message)s'
-
-    # Set up logs files
-    LOGS_SESSION_FILENAME = 'session_ti.log'
-    LOGS_INFO_FILENAME = 'info_ti.log'
-    LOGS_WARNING_FILENAME = 'warning_ti.log'
-
-    # Set up config filename
-    _config_name_yml = 'endpoints_config.yaml'
-    _config_name_json = 'mapping.json'
-
-    # Set up configs
-    CONFIG_YML = os.path.join(DOCS_DIR, "configs", _config_name_yml)
-    CONFIG_JSON = os.path.join(DOCS_DIR, "configs", _config_name_json)
-
-
-# Root logger initialization
-Logger.init_root_logger(
-    logs_dir=Config.LOGS_DIR,
-    logging_format=Config.LOGGING_FORMAT,
-    logging_level=Config.ROOT_LOGGING_LEVEL,
-    session_filename=Config.LOGS_SESSION_FILENAME,
-    info_filename=Config.LOGS_INFO_FILENAME,
-    warning_filename=Config.LOGS_WARNING_FILENAME
-)
-
-# Logger instance to use
-logger = Logger.init_logger(name=__name__)
-
-cfg = Config
-fh = FileHandler()
-pc = ProxyConfigurator()
-
-# Define configs
-mapping_config = fh.read_json_config(config=Config.CONFIG_JSON)
-endpoints_config = fh.read_yaml_config(config=Config.CONFIG_YML)
-
-# Define creds
-gib_creds = {
-    "creds": {
-        **endpoints_config.get("ti_client")
-    }
-}
-
-some_siem_creds = {
-    **endpoints_config.get("some_siem_creds")
-}
-
-proxy = {
-    **endpoints_config.get("proxy")
-}
-
-# Proxy initialization
-proxies = pc.get_proxies(**proxy)
-
-# Adapter API initialization
-gib_adapter = GIBAdapter(
-    gib_creds_dict=gib_creds,
-    proxies=proxies,
-    config_obj=cfg
-)
-
-# Some SIEM initialization
-siem_communicator = SIEMCommunicator(**some_siem_creds)
-```
-
-
-### **Create config files**
-
-As an example to correlate with Config class setting docs/config folder is used.
-
-docs/config/```mapping.json```
-
-```json
-{
-    "apt/threat": {
-        "ip": "indicators.params.ipv4",
-        "md5": "indicators.params.hashes.md5",
-        "sha1": "indicators.params.hashes.sha1",
-        "sha256": "indicators.params.hashes.sha256",
-        "url": "indicators.params.url",
-        "domain": "indicators.params.domain"
-    },
-    "attacks/ddos": {
-        "target_ip": "target.ipv4.ip",
-        "ip": "cnc.ipv4.ip"
-    }
-}
-```
-
-docs/config/```endpoints_config.yaml```
-
-```yaml
-collections:
-  apt/threat:
-    default_date: null
-    description: A collection of Indicators and MITRE ATT&CK matrix. It contains HASH
-      sums of malicious files that were generated by hackers, IP addresses, domains,
-      CVE and the group's activities, motives, and goals to understand what tools
-      and tactics they use according to the MITRE ATT&CK matrix.
-    dtl: null
-    enable: false
-    seqUpdate: null
-  attacks/ddos:
-    default_date: null
-    description: An attack that creates a load on the server and is executed simultaneously
-      from a large number of computers (often a network of infected zombie computers
-      is used) in order to create an artificial increase in requests to a resource
-      and thereby disable it.
-    dtl: null
-    enable: false
-    seqUpdate: null
-some_siem_creds:
-  base_ip: null
-  password: null
-  username: null
-proxy:
-  proxy_ip: null
-  proxy_password: null
-  proxy_port: null
-  proxy_protocol: null
-  proxy_username: null
-ti_client:
-  api_key: null
-  username: null
-
-```
-
-### **Create generator**
-
-As a last step create generator and iterate other portions. Extract feeds from each portion and manipulate with them for your needs.
-
-```python
-# Create generators based on configuration files
-generators_list = gib_adapter.create_generators(sleep_amount=1)
-
-# Iterate other
-for collection, generator in generators_list:
-    time.sleep(3)
-    if not generator:
-        logger.warning("No generator for collection: {}".format(collection))
-        continue
-
-    endpoints_config = fh.read_yaml_config(config=Config.CONFIG_YML)
-    if not endpoints_config["collections"][collection]["enable"]:
-        logger.warning("User disable collection: {}. Aborting!".format(collection))
-        continue
-
-    try:
-        for portion in generator:
-            # scan_blocks = portion.parse_portion(as_json=False)
-            keys = mapping_config.get(collection, {})
-            data = portion.get_iocs(keys)
-            # data = portion.get_iocs(
-            #     keys,
-            #     filter_map=("objective", ["Card harvest", "Login harvest", "Malware drop", "PII harvest"])
-            # )
-
-            tag_name = collection.replace("/", "_")
-            allowed_list = ["ip", "url"]
-
-            # ADD ANY SIEM COMMUNICATOR LOGIC HERE
-
-            prepared_data = {"seqUpdate": portion.sequpdate}
-            fh.save_collection_info(
-                config=Config.CONFIG_YML,
-                collection=collection,
-                **prepared_data
-            )
-    except SomeSIEMapiError as e:
-        logger.exception("Error occurred during connection to SomeSIEM")
-    except Exception as e:
-        logger.exception("Generator is empty. Raising notification.")
-        time.sleep(60)
-        exit(0)
-```
-
-
-### **Pack the package**
-
-```
-python setup.py sdist
-python setup.py bdist_wheel
-```
-
-```
-pip install wheel
-python setup.py build
-python setup.py install
-python setup.py develop
-```
-
-
 ## Troubleshooting
 
 ### 401 response code
@@ -924,4 +683,4 @@ Try setting a smaller limit when requesting the API.
 
 ## FAQ
 
-Have a question? Ask in the SD Ticket on our Portal
+Have a question? Ask in the SD Ticket on our Portal or cyberintegrationsdev@gmail.com

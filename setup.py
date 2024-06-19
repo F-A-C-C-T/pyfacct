@@ -10,6 +10,6 @@ setup(
     author='Сyberintegrations',
     author_email='cyberintegrationsdev@gmail.com',
     license='MIT',
-    # long_description=open("README.md").read(),
+    long_description=open("README.md").read(),
     long_description_content_type="text/markdown"
 )
