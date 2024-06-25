@@ -668,7 +668,8 @@ curl -X 'GET' 'https://<base URL>/api/v2/apt/threat/updated?limit=500&seqUpdate=
 ### 401 response code
 
 This code is return if you sent no credentials. Make sure that you send Authorization header and that you use Basic auth.
-403 response code
+
+### 403 response code
 
 There are several possible reasons of it:
 
