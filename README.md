@@ -5,6 +5,9 @@
 
 **CyberIntegrations** - Python library to communicate with **Group-IB Products** (TI, DRP) via  **API**.
 
+## **License**
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 
 ## **Content**
