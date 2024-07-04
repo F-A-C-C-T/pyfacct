@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='cyberintegrations',
-    version="0.7.2",
+    version="0.7.3",
     description='Python library - modules for processing data from the TI and DRP system collected in one library. '
                 'This library simplifies work with the products API and gives you the flexibility to customize the '
                 'search and retrieval of data from the system.',
