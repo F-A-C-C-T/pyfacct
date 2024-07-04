@@ -3,7 +3,7 @@
 
 [![Python](https://img.shields.io/badge/python-v3.6.8+-blue?logo=python)](https://python.org/downloads/release/python-368/)
 
-**CyberIntegrations** - Python library to communicate with **Group-IB Products** (TI, DRP) via  **API**.
+**CyberIntegrations** - Python library to communicate with **Company Products** (TI, DRP) via  **API**.
 
 ## **License**
 
