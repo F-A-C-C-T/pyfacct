@@ -8,14 +8,14 @@ This module contains consts.
 
 
 class TechnicalConsts(object):
-    library_name = "cyberintegrations"
-    library_version = "0.7.1"
+    library_name = "pyfacct"
+    library_version = "0.8.0"
 
 
 class RequestConsts(object):
     HEADERS = {
         "Accept": "*/*",
-        "User-Agent": f"cyberintegrations/{TechnicalConsts.library_version}"
+        "User-Agent": f"pyfacct/{TechnicalConsts.library_version}"
     }
 
     STATUS_CODE_MSGS = {

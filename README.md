@@ -1,9 +1,9 @@
-# CyberIntegrations
+# Pyfacct
 
 
 [![Python](https://img.shields.io/badge/python-v3.6.8+-blue?logo=python)](https://python.org/downloads/release/python-368/)
 
-**CyberIntegrations** - Python library to communicate with **Company Products** (TI, DRP) via  **API**.
+**Pyfacct** - Python library to communicate with **Company Products** (TI, DRP) via  **API**.
 
 ## **License**
 
@@ -53,16 +53,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Lib deps: **pyaml**, **requests**, **urllib3**, **dataclasses**.
 
-CyberIntegrations lib is available on PyPI:
+pyfacct lib is available on PyPI:
 
 ```
-pip install cyberintegrations
+pip install pyfacct
 ```
 
 Or use a Portal WHL archive. Replace `X.X.X` with current lib version:
 
 ```
-pip install ./cyberintegrations-X.X.X-py3-none-any.whl
+pip install ./pyfacct-X.X.X-py3-none-any.whl
 ```
 
 
@@ -84,16 +84,16 @@ If verify is set to `True`, requiring requests to verify the TLS certificate at 
 Put a path-like string to the custom TLS certificate if required.
 
 ```python
-from cyberintegrations import TIPoller, DRPPoller
+from pyfacct import TIPoller, DRPPoller
 
 poller = TIPoller(username='example@gmail.com', api_key='API_KEY', api_url="API_URL")
 poller.set_proxies(
-                proxy_protocol=PROXY_PROTOCOL,
-                proxy_port=PROXY_PORT,
-                proxy_ip=PROXY_ADDRESS,
-                proxy_password=PROXY_PASSWORD,
-                proxy_username=PROXY_USERNAME
-            )
+    proxy_protocol=PROXY_PROTOCOL,
+    proxy_port=PROXY_PORT,
+    proxy_ip=PROXY_ADDRESS,
+    proxy_password=PROXY_PASSWORD,
+    proxy_username=PROXY_USERNAME
+)
 poller.set_verify(True)
 ```
 
@@ -232,18 +232,18 @@ binary_file = poller.search_file_in_threats(collection_name='hi/threat', feed_id
 Don’t forget to close session in **try…except…finally** block, or use poller with context manager.
 
 ```python
-from cyberintegrations import TIPoller
-from cyberintegrations.exception import InputException
+from pyfacct import TIPoller
+from pyfacct.exception import InputException
 
 ...
 
 try:
     poller = TIPoller(username='example@gmail.com', api_key='API_KEY', api_url="API_URL")
-   ...
+...
 except InputException as e:
-   logger.info("Wrong input: {0}".format(e))
+logger.info("Wrong input: {0}".format(e))
 finally:
-   poller.close_session()
+poller.close_session()
 ```
 
 
@@ -365,43 +365,43 @@ parsing_result = {
 
 ```python
 import logging
-from cyberintegrations import TIPoller
-from cyberintegrations.exception import InputException, ConnectionException, ParserException
+from pyfacct import TIPoller
+from pyfacct.exception import InputException, ConnectionException, ParserException
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ...
 
 try:
-   poller = TIPoller(username=username, api_key=api_key, api_url=api_url)
-   poller.set_proxies(proxy_protocol=PROXY_PROTOCOL,
-                      proxy_port=PROXY_PORT,
-                      proxy_ip=PROXY_ADDRESS,
-                      proxy_password=PROXY_PASSWORD,
-                      proxy_username=PROXY_USERNAME)
-   poller.set_verify(True)
-   for collection, keys in keys_config.items():
-   poller.set_keys(collection, keys)	
-   for collection, state in update_generator_config.items():
+    poller = TIPoller(username=username, api_key=api_key, api_url=api_url)
+    poller.set_proxies(proxy_protocol=PROXY_PROTOCOL,
+                       proxy_port=PROXY_PORT,
+                       proxy_ip=PROXY_ADDRESS,
+                       proxy_password=PROXY_PASSWORD,
+                       proxy_username=PROXY_USERNAME)
+    poller.set_verify(True)
+    for collection, keys in keys_config.items():
+        poller.set_keys(collection, keys)
+    for collection, state in update_generator_config.items():
         if state.get("sequpdate"):
-        generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
+            generator = poller.create_update_generator(collection_name=collection, sequpdate=state.get("sequpdate"))
     elif state.get("date_from"):
-        sequpdate = poller.get_seq_update_dict(date=state.get('date_from'), collection_name=collection).get(collection)
-        generator = poller.create_update_generator(collection_name=collection, sequpdate=sequpdate)
-   else:
-       continue
-   for portion in generator:
-       parsed_portion = portion.parse_portion()
-           save_portion(parsed_portion)
-       update_generator_config[collection]["sequpdate"] = portion.sequpdate
-       
+    sequpdate = poller.get_seq_update_dict(date=state.get('date_from'), collection_name=collection).get(collection)
+    generator = poller.create_update_generator(collection_name=collection, sequpdate=sequpdate)
+else:
+continue
+for portion in generator:
+    parsed_portion = portion.parse_portion()
+    save_portion(parsed_portion)
+update_generator_config[collection]["sequpdate"] = portion.sequpdate
+
 except InputException as e:
-   logging.exception("Wrong input: {0}".format(e))
+logging.exception("Wrong input: {0}".format(e))
 except ConnectionException as e:
-   logging.exception("Something wrong with connection: {0}".format(e))
+logging.exception("Something wrong with connection: {0}".format(e))
 except ParserException as e:
-   logging.exception("Exception occured during parsing: {0}".format(e))
+logging.exception("Exception occured during parsing: {0}".format(e))
 finally:
-   poller.close_session()
+poller.close_session()
 ```
 
 
@@ -687,4 +687,4 @@ Try setting a smaller limit when requesting the API.
 
 ## FAQ
 
-Have a question? Ask in the SD Ticket on our Portal or cyberintegrationsdev@gmail.com
+Have a question? Ask in the SD Ticket on our Portal or integration@facct.ru

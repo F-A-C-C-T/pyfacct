@@ -1,16 +1,16 @@
 from setuptools import setup
 
 setup(
-    name='cyberintegrations',
-    version="0.7.3",
+    name='pyfacct',
+    version="0.8.0",
     description='Python library - modules for processing data from the TI and DRP system collected in one library. '
                 'This library simplifies work with the products API and gives you the flexibility to customize the '
                 'search and retrieval of data from the system.',
     python_requires='>=3.6',
     install_requires=['requests>=2.25.1', 'dataclasses', 'urllib3'],
-    packages=['cyberintegrations'],
-    author='Сyberintegrations',
-    author_email='cyberintegrationsdev@gmail.com',
+    packages=['pyfacct'],
+    author='F.A.C.C.T.',
+    author_email='integration@facct.ru',
     license='MIT',
     classifiers=[
         'Programming Language :: Python :: 3',
