@@ -1,12 +1,23 @@
-image: python:3.9
+image: python:3.9  # Используем Python-образ
 
 stages:
   - sync
 
 sync_to_github:
   stage: sync
+  before_script:
+    - apt-get update && apt-get install -y git
+
+    - export $(cat .env | xargs)
+
+    - git config --global user.email "$GIT_USER_EMAIL"
+    - git config --global user.name "$GIT_USER_NAME"
+
+    - git remote | grep github || git remote add github https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
+
   script:
-    - git remote add github https://$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
     - git push github --all
+    - git push github --tags
+
   only:
     - master
