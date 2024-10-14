@@ -21,6 +21,8 @@ sync_to_github:
     - git remote | grep github || git remote add github https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
 
   script:
+    - git fetch origin
+
     - git push github master
     - git push github --tags
 
