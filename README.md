@@ -252,7 +252,7 @@ poller.close_session()
 
 
 
-## Parsing
+## Parsing 
 
 
 Common example of API response from Collection (received feeds):
