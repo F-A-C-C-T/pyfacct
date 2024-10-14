@@ -4,7 +4,7 @@ stages:
 sync_to_github:
   stage: sync
   script:
-    - git remote add github https://github.com/username/repository.git
+    - git remote add github https://github.com/F-A-C-C-T/pyfacct.git
     - git push github --all
   only:
     - master
