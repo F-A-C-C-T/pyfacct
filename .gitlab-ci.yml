@@ -13,11 +13,11 @@ sync_to_github:
     - git config --global user.email "$GIT_USER_EMAIL"
     - git config --global user.name "$GIT_USER_NAME"
 
-    - git remote | grep github || git remote add github https://$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
+    - git remote | grep github || git remote add github https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
 
   script:
     - git push github master
-#    - git push github --tags
+    - git push github --tags
 
   only:
     - master
