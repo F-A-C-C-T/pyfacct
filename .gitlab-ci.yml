@@ -2,26 +2,20 @@ image: python:3.9
 
 stages:
   - sync
+  - publish
+
 
 sync_to_github:
   stage: sync
   before_script:
     - apt-get update && apt-get install -y git
 
-#    - export $(cat .env | xargs)
-#
-#    - git config --global user.email "$GIT_USER_EMAIL"
-#    - git config --global user.name "$GIT_USER_NAME"
-
 
     - git remote | grep github || git remote add github https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
     - git fetch origin
 
-    # Проверяем наличие веток
-    - git branch -r  # Показываем все удалённые ветки
-    - git branch  # Показываем все локальные ветки
-
-    # Если ветка master отсутствует локально, создаём её
+    - git branch -r
+    - git branch
     - git checkout -b master origin/master || echo "No master branch found on origin"
 
   script:
@@ -30,3 +24,12 @@ sync_to_github:
 
   only:
     - master
+
+publish_to_pypi:
+  stage: publish
+  script:
+    - pip install --upgrade setuptools wheel twine
+    - python setup.py sdist bdist_wheel
+    - twine upload --repository-url https://upload.pypi.org/legacy/ -u __token__ -p $PYPI_TOKEN dist/*
+  only:
+    - tags
