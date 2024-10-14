@@ -28,7 +28,6 @@ sync_to_github:
 publish_to_pypi:
   stage: publish
   script:
-    - pip install --upgrade setuptools wheel twine
     - python setup.py sdist bdist_wheel
     - twine upload --repository-url https://upload.pypi.org/legacy/ -u __token__ -p $PYPI_TOKEN dist/*
   only:
