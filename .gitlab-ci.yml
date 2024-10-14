@@ -1,4 +1,4 @@
-image: python:3.9  # Используем Python-образ
+image: python:3.9
 
 stages:
   - sync
@@ -12,6 +12,11 @@ sync_to_github:
 
     - git config --global user.email "$GIT_USER_EMAIL"
     - git config --global user.name "$GIT_USER_NAME"
+
+    - git clone https://$CI_SERVER_HOST/$CI_PROJECT_PATH.git repo
+    - cd repo
+
+    - git checkout master || echo "No master branch found" && exit 1
 
     - git remote | grep github || git remote add github https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
 
