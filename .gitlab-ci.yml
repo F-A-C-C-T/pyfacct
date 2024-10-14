@@ -1,9 +1,12 @@
+image: python:3.9
+
 stages:
   - sync
 
 sync_to_github:
   stage: sync
   script:
+    - pip install --upgrade pip
     - git remote add github https://github.com/F-A-C-C-T/pyfacct.git
     - git push github --all
   only:
