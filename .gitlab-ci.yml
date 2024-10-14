@@ -1,0 +1,10 @@
+stages:
+  - sync
+
+sync_to_github:
+  stage: sync
+  script:
+    - git remote add github https://github.com/username/repository.git
+    - git push github --all
+  only:
+    - master
