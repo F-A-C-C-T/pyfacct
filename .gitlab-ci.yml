@@ -7,12 +7,8 @@ sync_to_github:
   stage: sync
   before_script:
     - apt-get update && apt-get install -y git
-    - pip install python-dotenv  # Установим библиотеку для работы с .env файлами
 
-    # Загрузка переменных из .env файла
-    - export $(grep -v '^#' .env | xargs)
 
-    # Добавляем удалённый репозиторий, используя переменные из .env
     - git remote | grep github || git remote add github https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
 
     - git branch -r
