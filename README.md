@@ -74,7 +74,7 @@ pip install ./pyfacct-X.X.X-py3-none-any.whl
 ## **Usage**
 
 
-### Initialization
+### Initialization 
 
 Initialize **poller** with your credentials and set proxy (proxy should be in request-like format) if required.
 
