@@ -7,6 +7,8 @@ stages:
 sync_to_github:
   stage: sync
   before_script:
+    - echo $GITHUB_USERNAME
+    - echo $GITHUB_TOKEN
     - apt-get update && apt-get install -y git
     - git remote | grep github || git remote add github https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
     - git fetch origin
