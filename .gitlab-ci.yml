@@ -2,17 +2,21 @@ image: python:3.9
 
 stages:
   - sync
-  - publish
 
 sync_to_github:
   stage: sync
   before_script:
     - apt-get update && apt-get install -y git
+
+
     - git remote | grep github || git remote add github https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
     - git fetch origin
+
     - git branch -r
     - git branch
-    - git checkout master || echo "No master branch found on origin"
+
+
+    - git checkout -b master origin/master || echo "No master branch found on origin"
 
   script:
     - git push github master
@@ -20,12 +24,3 @@ sync_to_github:
 
   only:
     - master
-
-publish_to_pypi:
-  stage: publish
-  script:
-    - pip install twine
-    - python setup.py sdist bdist_wheel
-    - twine upload --repository-url https://upload.pypi.org/legacy/ -u __token__ -p $PYPI_TOKEN dist/*
-  only:
-    - tags
