@@ -9,9 +9,6 @@ sync_to_github:
     - apt-get update && apt-get install -y git
   script:
     - if [ -d "pyfacct" ]; then cd pyfacct && git pull origin master; else git clone --branch master https://github.com/F-A-C-C-T/pyfacct.git; fi
-    - ls -l
-    - cd pyfacct
-
     - git remote add github https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
     - git push github master
     - git push github --tags
