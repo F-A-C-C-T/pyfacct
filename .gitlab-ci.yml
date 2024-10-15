@@ -8,7 +8,7 @@ sync_to_github:
   before_script:
     - apt-get update && apt-get install -y git
   script:
-    - git clone --branch master https://gitlab.com/your-gitlab-project.git
+    - git clone --branch master https://github.com/F-A-C-C-T/pyfacct.git
     - cd your-gitlab-project
     - git remote add github https://$GITHUB_USERNAME:$GITHUB_TOKEN@github.com/F-A-C-C-T/pyfacct.git
     - git push github master
